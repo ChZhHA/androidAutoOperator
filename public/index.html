@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ADB 远程画面与点击</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <h1>ADB 远程画面与点击</h1>
+      <p>本页面通过 ADB 实时拉取手机截图，并支持点击画面进行远程点击。</p>
+      <div class="status" id="status">未连接</div>
+      <div class="card">
+        <div class="card-title">主题</div>
+        <div class="top-actions">
+          <button id="themeToggleBtn" class="btn">切换浅色</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">录制与回放</div>
+        <div class="controls">
+          <button id="recordBtn" class="btn">开始录制</button>
+          <button id="pauseBtn" class="btn" disabled>暂停录制</button>
+          <button id="playBtn" class="btn">回放</button>
+          <button id="saveBtn" class="btn">保存 JSON</button>
+          <label class="btn file-btn" for="loadInput">读取 JSON</label>
+          <input id="loadInput" type="file" accept="application/json" />
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">定时任务</div>
+        <div class="schedule">
+          <div class="schedule-grid">
+            <label>
+              开始时间(24小时制，含毫秒)
+              <input id="timeInput" type="time" step="0.001" value="" />
+            </label>
+            <label>
+              间隔(ms)
+              <input id="intervalInput" type="number" min="0" value="1000" />
+            </label>
+            <label>
+              循环次数(0=无限)
+              <input id="loopInput" type="number" min="0" value="1" />
+            </label>
+          </div>
+          <div class="schedule-actions">
+            <button id="scheduleBtn" class="btn">开始定时</button>
+            <button id="stopScheduleBtn" class="btn" disabled>停止定时</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">操作列表</div>
+        <div class="list" id="eventList">
+          <div class="empty">暂无操作记录</div>
+        </div>
+      </div>
+      <div class="hint">提示：若画面卡顿，可调大采集间隔。</div>
+    </aside>
+    <main class="main">
+      <img id="screen" alt="手机画面" />
+    </main>
+    <aside class="rightbar" id="logPanel">
+      <div class="drag-handle" id="logHandle" title="拖拽调整宽度"></div>
+      <div class="card log-card">
+        <div class="card-header">
+          <div class="card-title">执行日志</div>
+        </div>
+        <div class="list" id="logList">
+          <div class="empty">暂无执行日志</div>
+        </div>
+      </div>
+    </aside>
+    <script src="client.js"></script>
+  </body>
+</html>
