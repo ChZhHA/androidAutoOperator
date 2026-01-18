@@ -89,3 +89,27 @@ http://localhost:3000
 
 ## 贡献
 欢迎提交 issue/PR。请在修改前确保基本功能（截图流、点击、回放）在你的设备上可用。
+
+## 使用 Electron 运行
+
+项目已添加一个最小的 Electron 包装器，Electron 启动时会在子进程中启动本地服务器并打开一个桌面窗口。
+
+- 安装依赖：
+
+```bash
+npm install
+```
+
+- 以 Electron 运行（默认会启动内置服务器并打开窗口）：
+
+```bash
+npm start
+```
+
+- 仅启动服务器（在需要单独运行服务或调试时）：
+
+```bash
+npm run serve
+```
+
+备注：在首次运行前，你可能需要在开发环境中全局或本地安装 `electron`。`devDependencies` 中已添加 `electron` 与 `electron-builder`，你可以使用 `npm install` 安装它们。

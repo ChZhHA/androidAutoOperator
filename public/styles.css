@@ -632,3 +632,122 @@ body {
   font-size: 12px;
   color: var(--muted);
 }
+
+/* Custom scrollbar for a sleeker desktop feel (Chromium / Electron) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148,163,184,0.24) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148,163,184,0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148,163,184,0.32);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Log entry styling */
+#logList { display:flex; flex-direction:column; gap:6px; }
+.log-entry { padding:6px 8px; border-radius:8px; background: rgba(255,255,255,0.02); font-size:12px; color:var(--muted); border:1px solid rgba(255,255,255,0.02); }
+.log-entry.log-power { background: linear-gradient(90deg, rgba(98,175,239,0.06), rgba(82,139,255,0.04)); color: var(--accent); border-color: rgba(82,139,255,0.12); font-weight:600; }
+.log-entry.log-install { background: linear-gradient(90deg, rgba(100,120,100,0.03), rgba(80,90,80,0.02)); color: var(--muted); border-color: rgba(255,255,255,0.02); }
+
+/* Theme icon button fixed top-right, outside sidebar */
+.theme-icon-btn {
+  position: fixed;
+  /* place just outside left sidebar (sidebar width is 300px) */
+  left: calc(300px + 36px);
+  top: 12px;
+  width: 44px;
+  height: 44px;
+  padding: 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.08);
+  border: 1px solid rgba(255,255,255,0.03);
+  z-index: 1000;
+  cursor: pointer;
+}
+.theme-icon-btn img { width: 24px; height: 24px; display:block; }
+.theme-icon-btn:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.28); }
+
+/* 新增输入行与相关按钮样式优化 */
+.controls .inline-input-row,
+.events-card .event-controls,
+.controls > div[style] {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.controls input[type="text"],
+.controls input[type="number"] {
+  height: 36px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--text);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+
+#sendTextInput {
+  min-width: 160px;
+  flex: 1 1 auto;
+}
+
+#sendTextBtn, #addTextEventBtn, #powerBtn, #installMinicapBtn {
+  height: 36px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* 更明显的主动作按钮（例如：发送、安装） */
+.btn.primary {
+  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
+  border-color: rgba(0,0,0,0.08);
+  color: #fff;
+}
+.btn.primary:hover { filter: brightness(1.03); }
+
+/* 使内联数字输入更紧凑（电源时长） */
+#powerDuration {
+  width: 88px;
+  height: 36px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--text);
+  box-sizing: border-box;
+}
+
+/* placeholder 颜色优化 */
+::placeholder { color: rgba(255,255,255,0.35); }
+
+@media (max-width: 760px) {
+  .controls .inline-input-row,
+  .controls > div[style] { flex-direction: column; align-items: stretch; }
+  #sendTextBtn, #addTextEventBtn, #powerBtn, #installMinicapBtn { width: 100%; }
+}

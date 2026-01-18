@@ -1,181 +1,216 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
+
+<head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ADB 远程画面与点击</title>
+    <link rel="icon" href="icon/adb.png" type="image/png" />
     <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body>
+</head>
+
+<body>
     <aside class="sidebar">
-      <h1 data-i18n-key="app.title">ADB 远程画面与点击</h1>
-      <p data-i18n-key="app.desc">本页面通过 ADB 实时拉取手机截图，并支持点击画面进行远程点击。</p>
-      <div class="status" id="status" data-i18n-key="status.disconnected">未连接</div>
-      <div class="lang-select">
-        <label for="langSelect" data-i18n-key="label.lang">语言</label>
-        <div class="select-wrap">
-          <select id="langSelect">
-            <option value="zh">中文</option>
-            <option value="en">English</option>
-            <option value="ja">日本語</option>
-          </select>
+        <h1 data-i18n-key="app.title">ADB 远程画面与点击</h1>
+        <p data-i18n-key="app.desc">本页面通过 ADB 实时拉取手机截图，并支持点击画面进行远程点击。</p>
+        <div class="status" id="status" data-i18n-key="status.disconnected">未连接</div>
+        <div class="lang-select">
+            <label for="langSelect" data-i18n-key="label.lang">语言</label>
+            <div class="select-wrap">
+                <select id="langSelect">
+                    <option value="zh">中文</option>
+                    <option value="en">English</option>
+                    <option value="ja">日本語</option>
+                </select>
+            </div>
         </div>
-      </div>
-      <div class="card">
-        <div class="card-title" data-i18n-key="card.theme">主题</div>
-        <div class="top-actions">
-          <button id="themeToggleBtn" class="btn" data-i18n-key="btn.themeToggle">切换浅色</button>
+        <div class="card">
+            <div class="controls">
+                <button id="installMinicapBtn" class="btn">minicap (SDK 9-34)</button>
+                <button id="refreshBtn" class="btn" data-i18n-key="btn.refresh">刷新</button>
+            </div>
         </div>
-      </div>
-      <div class="card">
-        <div class="card-title" data-i18n-key="card.record">录制与回放</div>
-        <div class="controls">
-          <button id="recordBtn" class="btn" data-i18n-key="btn.record.start">开始录制</button>
-          <button id="pauseBtn" class="btn" disabled data-i18n-key="btn.pause">暂停录制</button>
-          <button id="playBtn" class="btn" data-i18n-key="btn.play">回放</button>
-          <button id="saveBtn" class="btn" data-i18n-key="btn.save">保存 JSON</button>
-          <label class="btn file-btn" for="loadInput" data-i18n-key="btn.load">读取 JSON</label>
-          <input id="loadInput" type="file" accept="application/json" />
+
+
+        <!-- theme card removed; theme icon lives at top-right -->
+        <div class="card">
+            <div class="card-title" data-i18n-key="card.record">录制与回放</div>
+            <div class="controls">
+                <button id="recordBtn" class="btn" data-i18n-key="btn.record.start">开始录制</button>
+                <button id="pauseBtn" class="btn" disabled data-i18n-key="btn.pause">暂停录制</button>
+                <button id="playBtn" class="btn" data-i18n-key="btn.play">回放</button>
+                <button id="saveBtn" class="btn" data-i18n-key="btn.save">保存 JSON</button>
+                <label class="btn file-btn" for="loadInput" data-i18n-key="btn.load">读取 JSON</label>
+                <input id="loadInput" type="file" accept="application/json" />
+                <label style="display:flex;align-items:center;gap:8px;">
+                    <span style="font-size:12px;color:var(--muted);" data-i18n-key="label.powerMode">电源</span>
+                    <select id="powerModeSelect"
+                        style="height:32px;border-radius:6px;padding:4px;background:var(--button);border:1px solid var(--border);color:var(--text);">
+                        <option value="short" data-i18n-key="opt.power.short">短按</option>
+                        <option value="long" data-i18n-key="opt.power.long">长按</option>
+                    </select>
+                    <input id="powerDuration" type="number" min="100" value="1200"
+                        style="width:80px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--panel-strong);color:var(--text);" />
+                    <button id="powerBtn" class="btn" data-i18n-key="btn.power">电源键</button>
+                </label>
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:center;" class="inline-input-row">
+                    <input id="sendTextInput" type="text" data-i18n-key="placeholder.sendText" placeholder="输入文本并发送"
+                        style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--panel-strong);color:var(--text);" />
+                    <button id="sendTextBtn" class="btn" data-i18n-key="btn.sendText">发送文本</button>
+                </div>
+                <button id="addTextEventBtn" class="btn" data-i18n-key="btn.addTextEvent">添加为输入事件</button>
+            </div>
         </div>
-      </div>
-      <div class="card">
-        <div class="card-title" data-i18n-key="card.schedule">定时任务</div>
-        <div class="schedule">
-          <div class="schedule-grid">
-            <label>
-              <span data-i18n-key="label.startTime">开始时间(24小时制，含毫秒)</span>
-              <input id="timeInput" type="time" step="0.001" value="" />
-            </label>
-            <label>
-              <span data-i18n-key="label.interval">间隔(ms)</span>
-              <input id="intervalInput" type="number" min="0" value="1000" />
-            </label>
-            <label>
-              <span data-i18n-key="label.loopCount">循环次数(0=无限)</span>
-              <input id="loopInput" type="number" min="0" value="1" />
-            </label>
-          </div>
-          <div class="schedule-actions">
-            <button id="scheduleBtn" class="btn" data-i18n-key="btn.scheduleStart">开始定时</button>
-            <button id="stopScheduleBtn" class="btn" disabled data-i18n-key="btn.scheduleStop">停止定时</button>
-          </div>
+        <div class="card">
+            <div class="card-title" data-i18n-key="card.schedule">定时任务</div>
+            <div class="schedule">
+                <div class="schedule-grid">
+                    <label>
+                        <span data-i18n-key="label.startTime">开始时间(24小时制，含毫秒)</span>
+                        <input id="timeInput" type="time" step="0.001" value="" />
+                    </label>
+                    <label>
+                        <span data-i18n-key="label.interval">间隔(ms)</span>
+                        <input id="intervalInput" type="number" min="0" value="1000" />
+                    </label>
+                    <label>
+                        <span data-i18n-key="label.loopCount">循环次数(0=无限)</span>
+                        <input id="loopInput" type="number" min="0" value="1" />
+                    </label>
+                </div>
+                <div class="schedule-actions">
+                    <button id="scheduleBtn" class="btn" data-i18n-key="btn.scheduleStart">开始定时</button>
+                    <button id="stopScheduleBtn" class="btn" disabled data-i18n-key="btn.scheduleStop">停止定时</button>
+                </div>
+            </div>
         </div>
-      </div> 
     </aside>
     <main class="main">
-      <canvas id="screen"></canvas>
-      <div id="cursorInfo" class="cursor-info" aria-hidden="true"></div>
+        <canvas id="screen"></canvas>
+        <div id="cursorInfo" class="cursor-info" aria-hidden="true"></div>
     </main>
     <aside class="rightbar" id="logPanel">
-      <div class="drag-handle" id="logHandle" title="拖拽调整宽度"></div>
-      <div class="card events-card">
-        <div class="card-title" data-i18n-key="card.events">操作列表</div>
-        <div class="event-controls">
-          <button id="openAddModalBtn" class="btn" data-i18n-key="btn.addOperation">添加操作</button>
+        <div class="drag-handle" id="logHandle" title="拖拽调整宽度"></div>
+        <div class="card events-card">
+            <div class="card-title" data-i18n-key="card.events">操作列表</div>
+            <div class="event-controls">
+                <button id="openAddModalBtn" class="btn" data-i18n-key="btn.addOperation">添加操作</button>
+            </div>
+            <div class="list" id="eventList">
+                <div class="empty" data-i18n-key="empty.events">暂无操作记录</div>
+            </div>
         </div>
-        <div class="list" id="eventList">
-          <div class="empty" data-i18n-key="empty.events">暂无操作记录</div>
-        </div>
-      </div>
 
-      <!-- 添加操作 Modal -->
-      <div id="addModal" class="modal" aria-hidden="true">
-        <div class="modal-backdrop"></div>
-        <div class="modal-content">
-          <h3 data-i18n-key="modal.title">添加操作</h3>
-          <div class="modal-row">
-            <label><span data-i18n-key="label.type">类型</span>
-              <select id="addType">
-                <option value="tap" data-i18n-key="opt.tap">TAP</option>
-                <option value="swipe" data-i18n-key="opt.swipe">SWIPE</option>
-                <option value="longpress" data-i18n-key="opt.longpress">LONGPRESS</option>
-                <option value="label" data-i18n-key="opt.label">标签</option>
-                <option value="goto" data-i18n-key="opt.goto">Goto</option>
-                <option value="wait" data-i18n-key="opt.wait">延时 (Wait)</option>
-              </select>
-            </label>
-          </div>
-          <div class="modal-row">
-            <div class="modal-group" data-for="tap,swipe,longpress">
-              <label><span data-i18n-key="field.x">X1</span> <input id="addX" type="number" value="0" /></label>
-              <label><span data-i18n-key="field.y">Y1</span> <input id="addY" type="number" value="0" /></label>
-              <button id="addCoordPickBtn" type="button" class="btn" data-i18n-key="btn.pickPoint">取点</button>
-            </div>
-          </div>
-          <div class="modal-row">
-            <div class="modal-group" data-for="swipe">
-              <label><span data-i18n-key="field.x2">X2</span> <input id="addX2" type="number" value="0" /></label>
-              <label><span data-i18n-key="field.y2">Y2</span> <input id="addY2" type="number" value="0" /></label>
-              <button id="addCoordPickBtn2" type="button" class="btn" data-i18n-key="btn.pickPoint">取点</button>
-            </div>
-          </div>
-          <div class="modal-row">
-            <div class="modal-group" data-for="swipe,longpress">
-              <label><span data-i18n-key="field.duration">时长(s)</span> <input id="addDuration" type="number" step="0.01" value="0.30" /></label>
-            </div>
-          </div>
-          <div class="modal-row">
-            <div class="modal-group" data-for="label,goto">
-              <label><span data-i18n-key="label.labelName">标签名</span> <input id="addLabelName" type="text" value="" /></label>
-            </div>
-          </div>
-          <div class="modal-row">
-            <div class="modal-group" data-for="wait">
-              <label><span data-i18n-key="field.wait_duration">时长(s)</span> <input id="addWaitDuration" type="number" step="0.1" value="1.0" /></label>
-            </div>
-          </div>
-          <div class="modal-row">
-            <div class="modal-group" data-for="goto">
-              <label>条件
-                <select id="addCondType">
-                  <option value="none">无</option>
-                  <option value="repeat" data-i18n-key="opt.repeat">执行 n 次</option>
-                    <option value="color" data-i18n-key="opt.colorCond">屏幕模糊取色</option>
-                </select>
-              </label>
-            </div>
-          </div>
-          <div class="modal-row">
-            <div class="modal-group" data-for="goto">
-              <label class="cond-repeat" style="display:none"><span data-i18n-key="label.times">次数</span>
-                <input id="addCondTimes" type="number" min="1" value="1" />
-              </label>
-              <label class="cond-color" style="display:none"><span data-i18n-key="label.color">颜色</span>
-                <div class="color-picker-row">
-                  <div id="addCondColorPreview" class="color-preview"></div>
-                  <input id="addCondColor" type="text" placeholder="#rrggbb" />
-                  <button id="addCondPickBtn" class="btn" data-i18n-key="picker.pick">取色</button>
+        <!-- 添加操作 Modal -->
+        <div id="addModal" class="modal" aria-hidden="true">
+            <div class="modal-backdrop"></div>
+            <div class="modal-content">
+                <h3 data-i18n-key="modal.title">添加操作</h3>
+                <div class="modal-row">
+                    <label><span data-i18n-key="label.type">类型</span>
+                        <select id="addType">
+                            <option value="tap" data-i18n-key="opt.tap">TAP</option>
+                            <option value="swipe" data-i18n-key="opt.swipe">SWIPE</option>
+                            <option value="longpress" data-i18n-key="opt.longpress">LONGPRESS</option>
+                            <option value="label" data-i18n-key="opt.label">标签</option>
+                            <option value="goto" data-i18n-key="opt.goto">Goto</option>
+                            <option value="wait" data-i18n-key="opt.wait">延时 (Wait)</option>
+                        </select>
+                    </label>
                 </div>
-                <label><span data-i18n-key="label.tolerance">容差</span>
-                  <input id="addCondTol" type="number" min="0" value="30" />
-                </label>
-                <label><span data-i18n-key="label.radius">采样半径</span>
-                  <input id="addCondRadius" type="number" min="0" value="2" />
-                </label>
-                <label><span data-i18n-key="label.sampleCoords">采样坐标</span>
-                  <input id="addCondX" type="number" placeholder="x" />
-                  <input id="addCondY" type="number" placeholder="y" />
-                  <div class="small" data-i18n-key="hint.sampleNote">提示：可手动填写或使用“取色”在画面上点击采样。</div>
-                </label>
-              </label>
+                <div class="modal-row">
+                    <div class="modal-group" data-for="tap,swipe,longpress">
+                        <label><span data-i18n-key="field.x">X1</span> <input id="addX" type="number"
+                                value="0" /></label>
+                        <label><span data-i18n-key="field.y">Y1</span> <input id="addY" type="number"
+                                value="0" /></label>
+                        <button id="addCoordPickBtn" type="button" class="btn" data-i18n-key="btn.pickPoint">取点</button>
+                    </div>
+                </div>
+                <div class="modal-row">
+                    <div class="modal-group" data-for="swipe">
+                        <label><span data-i18n-key="field.x2">X2</span> <input id="addX2" type="number"
+                                value="0" /></label>
+                        <label><span data-i18n-key="field.y2">Y2</span> <input id="addY2" type="number"
+                                value="0" /></label>
+                        <button id="addCoordPickBtn2" type="button" class="btn"
+                            data-i18n-key="btn.pickPoint">取点</button>
+                    </div>
+                </div>
+                <div class="modal-row">
+                    <div class="modal-group" data-for="swipe,longpress">
+                        <label><span data-i18n-key="field.duration">时长(s)</span> <input id="addDuration" type="number"
+                                step="0.01" value="0.30" /></label>
+                    </div>
+                </div>
+                <div class="modal-row">
+                    <div class="modal-group" data-for="label,goto">
+                        <label><span data-i18n-key="label.labelName">标签名</span> <input id="addLabelName" type="text"
+                                value="" /></label>
+                    </div>
+                </div>
+                <div class="modal-row">
+                    <div class="modal-group" data-for="wait">
+                        <label><span data-i18n-key="field.wait_duration">时长(s)</span> <input id="addWaitDuration"
+                                type="number" step="0.1" value="1.0" /></label>
+                    </div>
+                </div>
+                <div class="modal-row">
+                    <div class="modal-group" data-for="goto">
+                        <label>条件
+                            <select id="addCondType">
+                                <option value="none">无</option>
+                                <option value="repeat" data-i18n-key="opt.repeat">执行 n 次</option>
+                                <option value="color" data-i18n-key="opt.colorCond">屏幕模糊取色</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-row">
+                    <div class="modal-group" data-for="goto">
+                        <label class="cond-repeat" style="display:none"><span data-i18n-key="label.times">次数</span>
+                            <input id="addCondTimes" type="number" min="1" value="1" />
+                        </label>
+                        <label class="cond-color" style="display:none"><span data-i18n-key="label.color">颜色</span>
+                            <div class="color-picker-row">
+                                <div id="addCondColorPreview" class="color-preview"></div>
+                                <input id="addCondColor" type="text" placeholder="#rrggbb" />
+                                <button id="addCondPickBtn" class="btn" data-i18n-key="picker.pick">取色</button>
+                            </div>
+                            <label><span data-i18n-key="label.tolerance">容差</span>
+                                <input id="addCondTol" type="number" min="0" value="30" />
+                            </label>
+                            <label><span data-i18n-key="label.radius">采样半径</span>
+                                <input id="addCondRadius" type="number" min="0" value="2" />
+                            </label>
+                            <label><span data-i18n-key="label.sampleCoords">采样坐标</span>
+                                <input id="addCondX" type="number" placeholder="x" />
+                                <input id="addCondY" type="number" placeholder="y" />
+                                <div class="small" data-i18n-key="hint.sampleNote">提示：可手动填写或使用“取色”在画面上点击采样。</div>
+                            </label>
+                        </label>
+                    </div>
+                </div>
+                <input id="editIndex" type="hidden" value="-1" />
+                <div class="modal-actions">
+                    <button id="addEventBtn" class="btn" data-i18n-key="modal.add">添加</button>
+                    <button id="closeAddModalBtn" class="btn btn-ghost" data-i18n-key="modal.cancel">取消</button>
+                </div>
             </div>
-          </div>
-          <input id="editIndex" type="hidden" value="-1" />
-          <div class="modal-actions">
-            <button id="addEventBtn" class="btn" data-i18n-key="modal.add">添加</button>
-            <button id="closeAddModalBtn" class="btn btn-ghost" data-i18n-key="modal.cancel">取消</button>
-          </div>
         </div>
-      </div>
-      <div class="card log-card">
-        <div class="card-header">
-          <div class="card-title" data-i18n-key="card.logs">执行日志</div>
+        <div class="card log-card">
+            <div class="card-header">
+                <div class="card-title" data-i18n-key="card.logs">执行日志</div>
+            </div>
+            <div class="list" id="logList">
+                <div class="empty">暂无执行日志</div>
+            </div>
         </div>
-        <div class="list" id="logList">
-          <div class="empty">暂无执行日志</div>
-        </div>
-      </div>
     </aside>
+    <button id="themeIconBtn" class="theme-icon-btn" aria-label="切换主题" title="切换主题">
+        <img id="themeIconImg" src="icon/深色模式.svg" alt="theme" />
+    </button>
     <script src="client.js"></script>
-  </body>
+</body>
+
 </html>

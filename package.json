@@ -2,13 +2,43 @@
   "name": "android-auto-operator",
   "version": "1.0.0",
   "description": "ADB screen viewer with remote tap",
-  "main": "server.js",
+  "main": "main.js",
   "type": "commonjs",
   "scripts": {
-    "start": "node server.js"
+    "start": "electron .",
+    "serve": "node server.js",
+    "electron:dev": "electron .",
+    "dist": "electron-builder"
   },
   "dependencies": {
     "express": "^4.19.2",
     "ws": "^8.18.0"
+  }
+  ,"devDependencies": {
+    "electron": "^25.0.0",
+    "electron-builder": "^24.0.0"
+  },
+  "build": {
+    "appId": "com.example.androidautooperator",
+    "files": [
+      "**/*"
+    ],
+    "asar": true,
+    "win": {
+      "target": ["portable"],
+      "icon": "public/icon/adb.png"
+    },
+    "linux": {
+      "icon": "public/icon/adb.png"
+    },
+    "mac": {
+      "icon": "public/icon/adb.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true
+    }
   }
 }

@@ -92,6 +92,56 @@ const server = app.listen(PORT, () =>
 
 const wss = new WebSocket.Server({ server });
 
+// API: install minicap into connected device
+app.post('/install-minicap', async (req, res) => {
+    const messages = [];
+    try {
+        const abiResult = await runAdbCommandPromise(['shell', 'getprop', 'ro.product.cpu.abi'], { encoding: 'utf8' });
+        const sdkResult = await runAdbCommandPromise(['shell', 'getprop', 'ro.build.version.sdk'], { encoding: 'utf8' });
+        const ABI = (abiResult.stdout || '').toString().trim().replace(/\r/g, '');
+        const SDK = (sdkResult.stdout || '').toString().trim().replace(/\r/g, '');
+        messages.push(`Detected ABI: ${ABI}`);
+        messages.push(`Detected SDK: ${SDK}`);
+
+        const localMinicap = path.resolve(__dirname, 'minicap_build', 'libs', ABI, 'minicap');
+        const localSo = path.resolve(__dirname, 'minicap_build', 'jni', 'libs', `android-${SDK}`, ABI, 'minicap.so');
+
+        const fsExists = (p) => {
+            try {
+                return fs.existsSync(p);
+            } catch (e) { return false; }
+        };
+
+        if (!fsExists(localMinicap)) {
+            res.status(400).json({ success: false, error: 'local minicap binary not found', messages, path: localMinicap });
+            return;
+        }
+        if (!fsExists(localSo)) {
+            res.status(400).json({ success: false, error: 'local minicap.so not found', messages, path: localSo });
+            return;
+        }
+
+        // push minicap
+        messages.push(`Pushing ${localMinicap} -> /data/local/tmp/`);
+        await runAdbCommandPromise(['push', localMinicap, '/data/local/tmp/']);
+        messages.push('Pushed minicap binary');
+
+        // push so
+        messages.push(`Pushing ${localSo} -> /data/local/tmp/`);
+        await runAdbCommandPromise(['push', localSo, '/data/local/tmp/']);
+        messages.push('Pushed minicap.so');
+
+        // chmod
+        messages.push('Setting executable permission on /data/local/tmp/minicap');
+        await runAdbCommandPromise(['shell', 'chmod', '755', '/data/local/tmp/minicap']);
+
+        res.json({ success: true, messages });
+    } catch (err) {
+        console.error('install-minicap failed', err);
+        res.status(500).json({ success: false, error: err && err.message ? err.message : String(err), messages });
+    }
+});
+
 function adbArgs(baseArgs)
 {
     return DEVICE_ID ? ["-s", DEVICE_ID, ...baseArgs] : baseArgs;
@@ -444,6 +494,79 @@ wss.on("connection", (ws) =>
                     console.error("Tap failed:", err.message || err);
                 }
             });
+        }
+
+        // text input -> adb shell input text
+        if (data && data.type === 'input' && typeof data.text === 'string') {
+            // adb input text treats spaces specially; replace spaces with %s
+            let txt = String(data.text);
+            // escape percent to avoid accidental expansions
+            txt = txt.replace(/%/g, '%25');
+            txt = txt.replace(/ /g, '%s');
+            runAdbCommand(["shell", "input", "text", txt], {}, (err) => {
+                if (err) {
+                    console.error('Input text failed:', err.message || err);
+                }
+            });
+        }
+
+        // generic key events -> map common keys to Android keycodes
+        if (data && data.type === 'key' && data.key) {
+            const K = String(data.key);
+            const map = {
+                Enter: '66',
+                Backspace: '67',
+                Tab: '61',
+                Escape: '111',
+                Home: '3',
+                Back: '4',
+                Menu: '82',
+                VolumeUp: '24',
+                VolumeDown: '25',
+                PageUp: '92',
+                PageDown: '93',
+                Insert: '124',
+                Delete: '112',
+                Space: '62',
+            };
+            const code = map[K] || (K.length === 1 ? null : null);
+            if (code) {
+                runAdbCommand(["shell", "input", "keyevent", code], {}, (err) => {
+                    if (err) console.error('Key event failed:', err.message || err);
+                });
+            } else if (K.length === 1) {
+                // single character -> send as text
+                let ch = K;
+                if (ch === ' ') ch = '%s';
+                runAdbCommand(["shell", "input", "text", ch], {}, (err) => {
+                    if (err) console.error('Char input failed:', err.message || err);
+                });
+            } else {
+                // unknown named key -> no-op
+            }
+        }
+
+        // power key (support short / long when requested)
+        if (data && data.type === "power") {
+            const isLong = !!data.long;
+            const duration = Number(data.duration || 0);
+            if (isLong) {
+                // try --longpress support; fallback to simple keyevent
+                runAdbCommand(["shell", "input", "keyevent", "--longpress", "26"], {}, (err) => {
+                    if (err) {
+                        console.warn('Longpress keyevent not supported, falling back to short press:', err.message || err);
+                        runAdbCommand(["shell", "input", "keyevent", "26"], {}, (err2) => {
+                            if (err2) console.error("Power key failed:", err2.message || err2);
+                        });
+                    }
+                });
+            } else {
+                runAdbCommand(["shell", "input", "keyevent", "26"], {}, (err) => {
+                    if (err) {
+                        console.error("Power key failed:", err.message || err);
+                    }
+                });
+            }
         }
 
         if (

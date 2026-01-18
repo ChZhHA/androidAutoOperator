@@ -6,9 +6,18 @@ const pauseBtn = document.getElementById("pauseBtn");
 const playBtn = document.getElementById("playBtn");
 const saveBtn = document.getElementById("saveBtn");
 const loadInput = document.getElementById("loadInput");
+const installMinicapBtn = document.getElementById("installMinicapBtn");
+const powerBtn = document.getElementById("powerBtn");
+const powerModeSelect = document.getElementById('powerModeSelect');
+const powerDuration = document.getElementById('powerDuration');
+const sendTextInput = document.getElementById('sendTextInput');
+const sendTextBtn = document.getElementById('sendTextBtn');
+const addTextEventBtn = document.getElementById('addTextEventBtn');
+const refreshBtn = document.getElementById('refreshBtn');
 const eventListEl = document.getElementById("eventList");
 const logListEl = document.getElementById("logList");
-const themeToggleBtn = document.getElementById("themeToggleBtn");
+const themeIconBtn = document.getElementById("themeIconBtn");
+const themeIconImg = document.getElementById("themeIconImg");
 const logPanel = document.getElementById("logPanel");
 const logHandle = document.getElementById("logHandle");
 const timeInput = document.getElementById("timeInput");
@@ -67,6 +76,124 @@ let logs = [];
 const wsProtocol = location.protocol === "https:" ? "wss" : "ws";
 const ws = new WebSocket(`${wsProtocol}://${location.host}`);
 ws.binaryType = "blob";
+
+function appendLogLine(text, type) {
+  // centralize logs into `logs` array so renderLogList keeps them
+  addLog(text, type);
+}
+
+if (installMinicapBtn) {
+  installMinicapBtn.addEventListener('click', async () => {
+    installMinicapBtn.disabled = true;
+    appendLogLine('开始安装 minicap...', 'install');
+    try {
+      const resp = await fetch('/install-minicap', { method: 'POST' });
+      const data = await resp.json();
+      if (resp.ok && data && data.success) {
+        appendLogLine('minicap 已安装。', 'install');
+        if (data.messages && data.messages.length) {
+          data.messages.forEach(m => appendLogLine(m));
+        }
+      } else {
+        appendLogLine('安装 minicap 失败: ' + (data && data.error ? data.error : resp.statusText));
+        if (data && data.messages) data.messages.forEach(m => appendLogLine(m));
+      }
+    } catch (err) {
+      appendLogLine('安装过程中发生错误: ' + (err && err.message ? err.message : err), 'install');
+    } finally {
+      installMinicapBtn.disabled = false;
+    }
+  });
+}
+
+function sendPower(meta = {}) {
+  if (pickActive) return;
+  try {
+    ws.send(JSON.stringify({ type: 'power', ...meta }));
+  } catch (e) {
+    // ignore
+  }
+}
+
+function sendText(text, meta = {}) {
+  if (pickActive) return;
+  if (!text || !text.toString) return;
+  try {
+    ws.send(JSON.stringify({ type: 'input', text: String(text), ...meta }));
+  } catch (e) {}
+}
+
+function sendKey(keyInfo = {}, meta = {}) {
+  if (pickActive) return;
+  try {
+    ws.send(JSON.stringify({ type: 'key', key: keyInfo.key, code: keyInfo.code, keyCode: keyInfo.keyCode, ...meta }));
+  } catch (e) {}
+}
+
+if (powerBtn) {
+  powerBtn.addEventListener('click', () => {
+    powerBtn.disabled = true;
+    const mode = powerModeSelect ? powerModeSelect.value : 'short';
+    const dur = powerDuration ? Math.max(0, Number(powerDuration.value || 0)) : 0;
+      if (mode === 'long') {
+        appendLogLine(t('log.power.sent.long', { dur }), 'power');
+        recordEvent({ type: 'power', long: true, duration: dur });
+        try { sendPower({ long: true, duration: dur }); } catch (e) { appendLogLine(t('log.send_failed', { err: e && e.message ? e.message : e }), 'power'); }
+      } else {
+        appendLogLine(t('log.power.sent.short'), 'power');
+        recordEvent({ type: 'power', long: false });
+        try { sendPower({ long: false }); } catch (e) { appendLogLine(t('log.send_failed', { err: e && e.message ? e.message : e }), 'power'); }
+      }
+    setTimeout(() => { powerBtn.disabled = false; }, 500);
+  });
+}
+
+if (sendTextBtn) {
+  sendTextBtn.addEventListener('click', () => {
+    const text = sendTextInput ? (sendTextInput.value || '') : '';
+    if (!text) return;
+    appendLogLine(t('log.input.sent', { text }), 'install');
+    recordEvent({ type: 'input', text });
+    sendText(text);
+    if (sendTextInput) sendTextInput.value = '';
+  });
+}
+
+if (addTextEventBtn) {
+  addTextEventBtn.addEventListener('click', () => {
+    const text = sendTextInput ? (sendTextInput.value || '') : '';
+    if (!text) return;
+    recordedEvents.push({ type: 'input', text, t: 500 });
+    renderEventList();
+  });
+}
+
+if (refreshBtn) {
+  refreshBtn.addEventListener('click', () => {
+    try { location.reload(); } catch (e) { /* ignore */ }
+  });
+}
+
+// global keyboard forwarding: when not typing into an input/textarea, forward keydown as key event
+window.addEventListener('keydown', (ev) => {
+  const active = document.activeElement;
+  if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+  // prevent interfering with app shortcuts (allow ctrl/cmd combinations to pass through)
+  if (ev.metaKey || ev.ctrlKey) return;
+  // map printable characters to input text for nicer behavior
+  const key = ev.key;
+  if (!key) return;
+  // if single printable character, send as text; otherwise send as key
+  if (key.length === 1) {
+    recordEvent({ type: 'input', text: key });
+    sendText(key);
+    appendLogLine(`Send char: ${key}`, 'power');
+  } else {
+    recordEvent({ type: 'key', key });
+    sendKey({ key });
+    appendLogLine(`Send key: ${key}`, 'power');
+  }
+});
 
 // --- i18n support ---
 const I18N = {
@@ -128,6 +255,8 @@ const I18N = {
     "opt.label": "标签",
     "opt.goto": "跳转",
     "opt.wait": "等待",
+    "opt.input": "输入",
+    "opt.key": "按键",
     "field.x1": "X1",
     "field.y1": "Y1",
     "field.x2": "X2",
@@ -137,6 +266,9 @@ const I18N = {
     "field.wait_duration": "时长(s)",
     "field.interval": "间隔(s)",
     "field.wait_ms": "时长(ms)",
+    "log.input.sent": "已发送文本：{text}",
+    "log.playInput": "回放 文本：{text}",
+    "log.playKey": "回放 按键：{key}",
     "cond.repeat": " 条件: 执行 {n} 次",
     "cond.colorDesc": " 条件: 颜色 {color} 容差 {tol} 半径 {radius}{coords}",
     "cond.coords": " 坐标({x},{y})",
@@ -168,6 +300,20 @@ const I18N = {
     "log.exec.tap": "执行 TAP ({x}, {y})",
     "log.exec.swipe": "执行 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
     "log.exec.longpress": "执行 LONGPRESS ({x}, {y}) {duration}ms",
+    "btn.power": "电源键",
+    "opt.power.short": "短按",
+    "opt.power.long": "长按",
+    "label.powerMode": "电源",
+    "label.powerDuration": "时长(ms)",
+    "log.power.sent.short": "发送 电源键（短按） 到设备",
+    "log.power.sent.long": "发送 电源键（长按 {dur}ms） 到设备",
+    "log.power.play.short": "Play: 电源键（短按）",
+    "log.power.play.long": "Play: 电源键（长按 {dur}ms)",
+    "log.send_failed": "发送失败: {err}",
+    "btn.refresh": "刷新",
+    "btn.sendText": "发送文本",
+    "btn.addTextEvent": "添加为输入事件",
+    "placeholder.sendText": "输入文本并发送",
     "empty.events": "暂无操作记录",
     "empty.logs": "暂无执行日志",
     "opt.repeat": "执行 n 次",
@@ -299,6 +445,25 @@ const I18N = {
     "log.exec.tap": "Play TAP ({x}, {y})",
     "log.exec.swipe": "Play SWIPE ({x1}, {y1}) → ({x2}, {y2})",
     "log.exec.longpress": "Play LONGPRESS ({x}, {y}) {duration}ms",
+    "opt.input": "Input",
+    "opt.key": "Key",
+    "log.input.sent": "Sent text: {text}",
+    "log.playInput": "Play text: {text}",
+    "log.playKey": "Play key: {key}",
+    "btn.power": "Power",
+    "opt.power.short": "Short",
+    "opt.power.long": "Long",
+    "label.powerMode": "Power",
+    "label.powerDuration": "Duration(ms)",
+    "log.power.sent.short": "Sent power (short) to device",
+    "log.power.sent.long": "Sent power (long {dur}ms) to device",
+    "log.power.play.short": "Play: power (short)",
+    "log.power.play.long": "Play: power (long {dur}ms)",
+    "log.send_failed": "Send failed: {err}",
+    "btn.refresh": "Refresh",
+    "btn.sendText": "Send Text",
+    "btn.addTextEvent": "Add as Input Event",
+    "placeholder.sendText": "Type text to send",
   },
   ja: {
     "app.title": "ADB リモート画面とタッチ",
@@ -414,6 +579,25 @@ const I18N = {
     "log.exec.tap": "実行 TAP ({x}, {y})",
     "log.exec.swipe": "実行 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
     "log.exec.longpress": "実行 LONGPRESS ({x}, {y}) {duration}ms",
+    "opt.input": "入力",
+    "opt.key": "キー",
+    "log.input.sent": "テキスト送信：{text}",
+    "log.playInput": "再生テキスト：{text}",
+    "log.playKey": "再生キー：{key}",
+    "btn.power": "電源鍵",
+    "opt.power.short": "短押し",
+    "opt.power.long": "長押し",
+    "label.powerMode": "電源",
+    "label.powerDuration": "時長(ms)",
+    "log.power.sent.short": "電源（短押し）を送信しました",
+    "log.power.sent.long": "電源（長押し {dur}ms）を送信しました",
+    "log.power.play.short": "再生: 電源（短押し）",
+    "log.power.play.long": "再生: 電源（長押し {dur}ms)",
+    "log.send_failed": "送信失敗: {err}",
+    "btn.refresh": "リフレッシュ",
+    "btn.sendText": "テキスト送信",
+    "btn.addTextEvent": "入力イベントに追加",
+    "placeholder.sendText": "送信するテキストを入力",
   },
 };
 
@@ -458,7 +642,8 @@ function updateDynamicTexts() {
   if (saveBtn) saveBtn.textContent = t('btn.save');
   const loadLabel = document.querySelector('label[for="loadInput"]');
   if (loadLabel) loadLabel.textContent = t('btn.load');
-  if (themeToggleBtn) themeToggleBtn.textContent = t('btn.themeToggle');
+  // theme icon button will use localized title
+  if (themeIconBtn) themeIconBtn.title = t('btn.themeToggle');
   // ensure status text respects current connection state when language changes
   if (typeof statusEl !== 'undefined' && statusEl) {
     const connected = typeof ws !== 'undefined' && ws && ws.readyState === WebSocket.OPEN;
@@ -544,10 +729,10 @@ function sendLongPress(x, y, duration, meta = {}) {
   }
 }
 
-function addLog(message) {
+function addLog(message, type) {
   const time = new Date();
   const stamp = time.toLocaleTimeString("zh-CN", { hour12: false });
-  logs.unshift({ stamp, message });
+  logs.unshift({ stamp, message, type: type || null });
   if (logs.length > 200) logs = logs.slice(0, 200);
   renderLogList();
 }
@@ -595,6 +780,20 @@ function startPlayback(events, options = {}) {
       if (evt.type === "tap") {
         sendTap(evt.x, evt.y, { playback: true });
         if (options.logEvents) addLog(t('log.playEvent.tap', { x: Math.round(evt.x), y: Math.round(evt.y) }));
+      } else if (evt.type === "power") {
+        // trigger device power key, include long/duration if present
+        try { ws.send(JSON.stringify({ type: 'power', playback: true, long: !!evt.long, duration: Number(evt.duration || 0) })); } catch (e) { }
+        if (options.logEvents) {
+          if (evt.long) addLog(t('log.power.play.long', { dur: Number(evt.duration || 0) }));
+          else addLog(t('log.power.play.short'));
+        }
+      } else if (evt.type === 'input') {
+        // send text input
+        try { ws.send(JSON.stringify({ type: 'input', text: String(evt.text || ''), playback: true })); } catch (e) {}
+        if (options.logEvents) addLog(t('log.playInput', { text: String(evt.text || '') }));
+      } else if (evt.type === 'key') {
+        try { ws.send(JSON.stringify({ type: 'key', key: evt.key, playback: true })); } catch (e) {}
+        if (options.logEvents) addLog(t('log.playKey', { key: String(evt.key || '') }));
       } else if (evt.type === "swipe") {
         sendSwipe(evt.x1, evt.y1, evt.x2, evt.y2, evt.duration, { playback: true });
         if (options.logEvents)
@@ -798,6 +997,47 @@ function renderEventList() {
             <span class="tag">${t('evt.wait')}</span>
             <span class="event-label">${t('field.wait_ms')}</span>
             <span class="event-value" data-index="${index}" data-field="interval" data-step="1">${formatSeconds(intervals[index])}</span>
+          </div>
+          <div class="event-meta">
+            <span class="event-label">${t('field.interval')}</span>
+            <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
+          </div>
+        </li>`;
+      }
+      if (evt.type === "power") {
+          const modeLabel = evt.long ? t('opt.power.long') : t('opt.power.short');
+          const durLabel = evt.long ? ` (${formatSeconds(Number(evt.duration || 0))})` : '';
+          return `<li class="event-item" draggable="true" data-index="${index}">
+            ${deleteHtml}
+            <div class="event-main">
+              <span class="tag">${t('btn.power')}</span>
+              <span class="event-value">${modeLabel}${durLabel}</span>
+            </div>
+            <div class="event-meta">
+              <span class="event-label">${t('field.interval')}</span>
+              <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
+            </div>
+          </li>`;
+      }
+      if (evt.type === 'input') {
+        return `<li class="event-item" draggable="true" data-index="${index}">
+          ${deleteHtml}
+          <div class="event-main">
+            <span class="tag">${t('opt.input')}</span>
+            <span class="event-value">${String(evt.text || '').replace(/</g,'&lt;')}</span>
+          </div>
+          <div class="event-meta">
+            <span class="event-label">${t('field.interval')}</span>
+            <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
+          </div>
+        </li>`;
+      }
+      if (evt.type === 'key') {
+        return `<li class="event-item" draggable="true" data-index="${index}">
+          ${deleteHtml}
+          <div class="event-main">
+            <span class="tag">${t('opt.key')}</span>
+            <span class="event-value">${String(evt.key || '').replace(/</g,'&lt;')}</span>
           </div>
           <div class="event-meta">
             <span class="event-label">${t('field.interval')}</span>
@@ -1289,7 +1529,11 @@ function renderLogList() {
     return;
   }
   const items = logs
-    .map((log) => `<li><span>${log.message}</span><span>${log.stamp}</span></li>`)
+    .map((log) => {
+      const cls = ['log-entry'];
+      if (log.type) cls.push(`log-${log.type}`);
+      return `<li class="${cls.join(' ')}"><span class="log-message">${log.message}</span><span class="log-stamp">${log.stamp}</span></li>`;
+    })
     .join("");
   logListEl.innerHTML = `<ul>${items}</ul>`;
 }
@@ -1652,7 +1896,7 @@ loadInput.addEventListener("change", async (event) => {
       // 看起来是单调递增，视为旧格式，转换为间隔
       parsed = parsed.map((e, i, arr) => ({ ...e, t: i === 0 ? Number(e.t || 0) : Math.max(0, Number(e.t || 0) - Number(arr[i - 1].t || 0)) }));
     }
-    recordedEvents = parsed.filter((e) => e && (e.type === "tap" || e.type === "swipe" || e.type === "label" || e.type === "goto" || e.type === "wait" || e.type === "longpress"));
+    recordedEvents = parsed.filter((e) => e && (e.type === "tap" || e.type === "swipe" || e.type === "label" || e.type === "goto" || e.type === "wait" || e.type === "longpress" || e.type === "input" || e.type === "key"));
     renderEventList();
     addLog(t('log.loadedJson'));
   } catch {
@@ -1758,7 +2002,12 @@ function setTheme(mode) {
   const theme = mode === "light" ? "light" : "dark";
   document.documentElement.dataset.theme = theme;
   localStorage.setItem("theme", theme);
-  themeToggleBtn.textContent = theme === "dark" ? "切换浅色" : "切换深色";
+  // show the icon that indicates the opposite mode (click to switch)
+  if (themeIconImg) {
+    // show icon representing the CURRENT theme
+    themeIconImg.src = theme === 'dark' ? 'icon/深色模式.svg' : 'icon/浅色模式.svg';
+  }
+  if (themeIconBtn) themeIconBtn.title = t('btn.themeToggle');
 }
 
 const savedTheme = localStorage.getItem("theme");
@@ -1769,10 +2018,12 @@ if (savedTheme === "light" || savedTheme === "dark") {
   setTheme(prefersLight ? "light" : "dark");
 }
 
-themeToggleBtn.addEventListener("click", () => {
-  const current = document.documentElement.dataset.theme;
-  setTheme(current === "light" ? "dark" : "light");
-});
+if (themeIconBtn) {
+  themeIconBtn.addEventListener('click', () => {
+    const current = document.documentElement.dataset.theme;
+    setTheme(current === 'light' ? 'dark' : 'light');
+  });
+}
 
 function setLogPanelCollapsed(collapsed) {
   logPanel.classList.toggle("collapsed", collapsed);
