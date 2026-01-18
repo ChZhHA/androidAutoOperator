@@ -1,5 +1,5 @@
 {
-  "name": "adb-remote-viewer",
+  "name": "android-auto-operator",
   "version": "1.0.0",
   "description": "ADB screen viewer with remote tap",
   "main": "server.js",
