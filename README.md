@@ -1,8 +1,7 @@
 # AndroidAutoOperator
 
 This repository contains two localized READMEs:
-
-- `README.en.md` — English quick start
+- [README.en.md](README.en.md) — English quick start
 
 Please open the file matching your preferred language.
 

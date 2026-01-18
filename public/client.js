@@ -68,14 +68,435 @@ const wsProtocol = location.protocol === "https:" ? "wss" : "ws";
 const ws = new WebSocket(`${wsProtocol}://${location.host}`);
 ws.binaryType = "blob";
 
+// --- i18n support ---
+const I18N = {
+  zh: {
+    "app.title": "ADB 远程画面与点击",
+    "app.desc": "本页面通过 ADB 实时拉取手机截图，并支持点击画面进行远程点击。",
+    "status.connected": "已连接",
+    "status.disconnected": "连接已断开",
+    "btn.themeToggle": "切换浅色",
+    "btn.record.start": "开始录制",
+    "btn.record.stop": "停止录制",
+    "btn.pause": "暂停录制",
+    "btn.resume": "继续录制",
+    "btn.play": "回放",
+    "btn.save": "保存 JSON",
+    "btn.load": "读取 JSON",
+    "btn.addOperation": "添加操作",
+    "card.events": "操作列表",
+    "card.logs": "执行日志",
+    "card.theme": "主题",
+    "card.record": "录制与回放",
+    "card.schedule": "定时任务",
+    "modal.title": "添加操作",
+    "modal.add": "添加",
+    "modal.cancel": "取消",
+    "picker.pick": "取色",
+    "picker.cancel": "取消取色",
+    "picker.infoColor": "取色中：在画面点击采样，或再次点击\"取消取色\"",
+    "picker.infoPoint": "取点中：在画面点击采样，或按 Esc 取消",
+    "log.websocketConnected": "WebSocket 已连接",
+    "log.websocketDisconnected": "WebSocket 已断开",
+    "log.colorSampled": "已采样颜色 {hex}",
+    "log.coordSampled": "已采样坐标 ({x},{y})",
+    "log.startRecord": "开始录制",
+    "log.stopRecord": "停止录制",
+    "log.pauseRecord": "录制已暂停",
+    "log.resumeRecord": "录制继续",
+    "log.startPlayback": "开始回放",
+    "log.stopPlayback": "停止回放",
+    "log.playbackDone": "回放完成",
+    "log.loadedJson": "已加载 JSON",
+    "log.scheduledRoundComplete": "本轮回放完成，等待下次执行",
+    "log.scheduledStart": "定时任务已启动",
+    "log.scheduledStopped": "定时任务已停止",
+    "btn.delete": "删除",
+    "btn.pickPoint": "取点",
+    "label.lang": "言/Language",
+    "evt.tap": "点击",
+    "evt.swipe": "滑动",
+    "evt.label": "标签",
+    "evt.goto": "跳转",
+    "evt.longpress": "长按",
+    "evt.wait": "等待",
+    "field.x": "X",
+    "field.y": "Y",
+    "opt.tap": "点击",
+    "opt.swipe": "滑动",
+    "opt.longpress": "长按",
+    "opt.label": "标签",
+    "opt.goto": "跳转",
+    "opt.wait": "等待",
+    "field.x1": "X1",
+    "field.y1": "Y1",
+    "field.x2": "X2",
+    "field.y2": "Y2",
+    "field.duration": "时长(s)",
+    "label.labelName": "标签名",
+    "field.wait_duration": "时长(s)",
+    "field.interval": "间隔(s)",
+    "field.wait_ms": "时长(ms)",
+    "cond.repeat": " 条件: 执行 {n} 次",
+    "cond.colorDesc": " 条件: 颜色 {color} 容差 {tol} 半径 {radius}{coords}",
+    "cond.coords": " 坐标({x},{y})",
+    "log.add.tap": "添加 TAP ({x}, {y})",
+    "log.update.tap": "更新 TAP ({x}, {y})",
+    "log.add.swipe": "添加 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.update.swipe": "更新 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.add.label": "添加 标签 {name}",
+    "log.update.label": "更新 标签 {name}",
+    "log.add.goto": "添加 GOTO {name}{cond}",
+    "log.update.goto": "更新 GOTO {name}{cond}",
+    "log.add.longpress": "添加 LONGPRESS ({x}, {y}) {duration}ms",
+    "log.update.longpress": "更新 LONGPRESS ({x}, {y}) {duration}ms",
+    "log.add.wait": "添加 WAIT {dur}ms",
+    "log.update.wait": "更新 WAIT {dur}ms",
+    "log.playEvent.tap": "回放 TAP ({x}, {y})",
+    "log.playEvent.swipe": "回放 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.playEvent.longpress": "回放 LONGPRESS ({x}, {y}) {duration}ms",
+    "log.gotoEncounter": "遇到 GOTO {name}",
+    "log.gotoColorCond": "GOTO {name} 条件 color: 采样 {sampled} 距离 {dist}",
+    "log.gotoColorNotMet": "GOTO {name} 条件 color 未满足，跳过",
+    "log.gotoRepeatExec": "GOTO {name} 条件 repeat: 第 {n} 次，执行跳转",
+    "log.gotoRepeatSkip": "GOTO {name} 条件 repeat: 已达到次数，跳过",
+    "log.gotoNoCond": "GOTO {name} 无条件，执行跳转",
+    "log.tagNotFound": "未找到标签 {name}",
+    "log.playFromTagStart": "从标签 {name} 开始回放",
+    "log.playFromTagDone": "从标签 {name} 回放完成",
+    "label.hasCond": " （有条件）",
+    "log.exec.tap": "执行 TAP ({x}, {y})",
+    "log.exec.swipe": "执行 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.exec.longpress": "执行 LONGPRESS ({x}, {y}) {duration}ms",
+    "empty.events": "暂无操作记录",
+    "empty.logs": "暂无执行日志",
+    "opt.repeat": "执行 n 次",
+    "opt.colorCond": "屏幕模糊取色",
+    "label.startTime": "开始时间(24小时制，含毫秒)",
+    "label.interval": "间隔(ms)",
+    "label.loopCount": "循环次数(0=无限)",
+    "btn.scheduleStart": "开始定时",
+    "btn.scheduleStop": "停止定时",
+    "label.type": "类型",
+    "label.times": "次数",
+    "label.color": "颜色",
+    "label.tolerance": "容差",
+    "label.radius": "采样半径",
+    "label.sampleCoords": "采样坐标",
+    "hint.sampleNote": "提示：可手动填写或使用“取色”在画面上点击采样。",
+  },
+  en: {
+    "app.title": "ADB Remote Screen & Touch",
+    "app.desc": "This page pulls screenshots from a device via ADB and supports remote touch actions.",
+    "status.connected": "Connected",
+    "status.disconnected": "Disconnected",
+    "btn.themeToggle": "Toggle Light",
+    "btn.record.start": "Start Recording",
+    "btn.record.stop": "Stop Recording",
+    "btn.pause": "Pause Recording",
+    "btn.resume": "Resume Recording",
+    "btn.play": "Play",
+    "btn.save": "Save JSON",
+    "btn.load": "Load JSON",
+    "btn.addOperation": "Add Action",
+    "card.events": "Actions",
+    "card.logs": "Logs",
+    "card.theme": "Theme",
+    "card.record": "Record & Playback",
+    "card.schedule": "Schedule",
+    "modal.title": "Add Action",
+    "modal.add": "Add",
+    "modal.cancel": "Cancel",
+    "picker.pick": "Pick Color",
+    "picker.cancel": "Cancel",
+    "picker.infoColor": "Picking color: click on the screen to sample, or click Cancel",
+    "picker.infoPoint": "Picking point: click on the screen to sample, or press Esc to cancel",
+    "log.websocketConnected": "WebSocket connected",
+    "log.websocketDisconnected": "WebSocket disconnected",
+    "log.colorSampled": "Color sampled {hex}",
+    "log.coordSampled": "Sampled coordinate ({x},{y})",
+    "log.startRecord": "Start recording",
+    "log.stopRecord": "Stop recording",
+    "log.pauseRecord": "Recording paused",
+    "log.resumeRecord": "Recording resumed",
+    "log.startPlayback": "Start playback",
+    "log.stopPlayback": "Stop playback",
+    "log.playbackDone": "Playback finished",
+    "log.loadedJson": "JSON loaded",
+    "log.scheduledRoundComplete": "Round finished, waiting for next run",
+    "log.scheduledStart": "Schedule started",
+    "log.scheduledStopped": "Schedule stopped",
+    "empty.events": "No recorded actions",
+    "empty.logs": "No logs",
+    "opt.repeat": "Repeat n times",
+    "opt.colorCond": "Screen color sample",
+    "label.startTime": "Start time (24h, with milliseconds)",
+    "label.interval": "Interval (ms)",
+    "label.loopCount": "Loop count (0 = infinite)",
+    "btn.scheduleStart": "Start Schedule",
+    "btn.scheduleStop": "Stop Schedule",
+    "label.type": "Type",
+    "label.times": "Times",
+    "label.color": "Color",
+    "label.tolerance": "Tolerance",
+    "label.radius": "Radius",
+    "label.sampleCoords": "Sample Coordinates",
+    "hint.sampleNote": "Hint: fill manually or use 'Pick' to sample on screen.",
+    "btn.delete": "Delete",
+    "btn.pickPoint": "Pick",
+    "label.lang": "言/Language",
+    "opt.tap": "Tap",
+    "opt.swipe": "Swipe",
+    "opt.longpress": "Long press",
+    "opt.label": "Label",
+    "opt.goto": "Goto",
+    "opt.wait": "Wait",
+    "evt.tap": "Tap",
+    "evt.swipe": "Swipe",
+    "evt.label": "Label",
+    "evt.goto": "Goto",
+    "evt.longpress": "Long press",
+    "evt.wait": "Wait",
+    "field.x": "X",
+    "field.y": "Y",
+    "field.x1": "X1",
+    "field.y1": "Y1",
+    "field.x2": "X2",
+    "field.y2": "Y2",
+    "field.duration": "Duration(s)",
+    "label.labelName": "Label Name",
+    "field.wait_duration": "Duration(s)",
+    "field.interval": "Interval(s)",
+    "field.wait_ms": "Duration(ms)",
+    "cond.repeat": " Condition: repeat {n} times",
+    "cond.colorDesc": " Condition: color {color} tol {tol} radius {radius}{coords}",
+    "cond.coords": " ({x},{y})",
+    "log.add.tap": "Added TAP ({x}, {y})",
+    "log.update.tap": "Updated TAP ({x}, {y})",
+    "log.add.swipe": "Added SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.update.swipe": "Updated SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.add.label": "Added label {name}",
+    "log.update.label": "Updated label {name}",
+    "log.add.goto": "Added GOTO {name}{cond}",
+    "log.update.goto": "Updated GOTO {name}{cond}",
+    "log.add.longpress": "Added LONGPRESS ({x}, {y}) {duration}ms",
+    "log.update.longpress": "Updated LONGPRESS ({x}, {y}) {duration}ms",
+    "log.add.wait": "Added WAIT {dur}ms",
+    "log.update.wait": "Updated WAIT {dur}ms",
+    "log.playEvent.tap": "Play TAP ({x}, {y})",
+    "log.playEvent.swipe": "Play SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.playEvent.longpress": "Play LONGPRESS ({x}, {y}) {duration}ms",
+    "log.gotoEncounter": "Encounter GOTO {name}",
+    "log.gotoColorCond": "GOTO {name} color cond: sampled {sampled} dist {dist}",
+    "log.gotoColorNotMet": "GOTO {name} color cond not met, skip",
+    "log.gotoRepeatExec": "GOTO {name} repeat cond: exec #{n}, jumping",
+    "log.gotoRepeatSkip": "GOTO {name} repeat cond reached, skip",
+    "log.gotoNoCond": "GOTO {name} no cond, jumping",
+    "log.tagNotFound": "Tag {name} not found",
+    "log.playFromTagStart": "Playback from tag {name} started",
+    "log.playFromTagDone": "Playback from tag {name} done",
+    "label.hasCond": " (cond)",
+    "log.exec.tap": "Play TAP ({x}, {y})",
+    "log.exec.swipe": "Play SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.exec.longpress": "Play LONGPRESS ({x}, {y}) {duration}ms",
+  },
+  ja: {
+    "app.title": "ADB リモート画面とタッチ",
+    "app.desc": "ADB を介してデバイスのスクリーンショットを取得し、リモートタッチ操作を行えます。",
+    "status.connected": "接続済み",
+    "status.disconnected": "切断されました",
+    "btn.themeToggle": "ライト切替",
+    "btn.record.start": "録画開始",
+    "btn.record.stop": "録画停止",
+    "btn.pause": "録画を一時停止",
+    "btn.resume": "録画を再開",
+    "btn.play": "再生",
+    "btn.save": "JSON を保存",
+    "btn.load": "JSON を読み込む",
+    "btn.addOperation": "操作を追加",
+    "card.events": "操作リスト",
+    "card.logs": "実行ログ",
+    "card.theme": "テーマ",
+    "card.record": "録画と再生",
+    "card.schedule": "スケジュール",
+    "modal.title": "操作を追加",
+    "modal.add": "追加",
+    "modal.cancel": "キャンセル",
+    "picker.pick": "色を取得",
+    "picker.cancel": "取得をキャンセル",
+    "picker.infoColor": "色取得中: 画面をクリックしてサンプル、またはキャンセルをクリック",
+    "picker.infoPoint": "座標取得中: 画面をクリックしてサンプル、または Esc キーでキャンセル",
+    "log.websocketConnected": "WebSocket に接続しました",
+    "log.websocketDisconnected": "WebSocket から切断されました",
+    "log.colorSampled": "色を取得しました {hex}",
+    "log.coordSampled": "座標を取得しました ({x},{y})",
+    "log.startRecord": "録画開始",
+    "log.stopRecord": "録画停止",
+    "log.pauseRecord": "録画を一時停止しました",
+    "log.resumeRecord": "録画を再開しました",
+    "log.startPlayback": "再生を開始しました",
+    "log.stopPlayback": "再生を停止しました",
+    "log.playbackDone": "再生が完了しました",
+    "log.loadedJson": "JSON を読み込みました",
+    "log.scheduledRoundComplete": "ラウンドが完了しました。次の実行を待機します",
+    "log.scheduledStart": "スケジュールを開始しました",
+    "log.scheduledStopped": "スケジュールを停止しました",
+    "empty.events": "操作がありません",
+    "empty.logs": "ログがありません",
+    "opt.repeat": "n 回実行",
+    "opt.colorCond": "画面の色サンプリング",
+    "label.startTime": "開始時刻（24時間表記、ミリ秒含む）",
+    "label.interval": "間隔(ms)",
+    "label.loopCount": "ループ回数(0=無限)",
+    "btn.scheduleStart": "スケジュール開始",
+    "btn.scheduleStop": "スケジュール停止",
+    "label.type": "タイプ",
+    "label.times": "回数",
+    "label.color": "色",
+    "label.tolerance": "許容値",
+    "label.radius": "サンプリング半径",
+    "label.sampleCoords": "サンプリング座標",
+    "hint.sampleNote": "ヒント: 手動で入力するか、画面上の「取得」でサンプリングしてください。",
+    "btn.delete": "削除",
+    "btn.pickPoint": "取得",
+    "label.lang": "言/Language",
+    "evt.tap": "タップ",
+    "evt.swipe": "スワイプ",
+    "evt.label": "ラベル",
+    "evt.goto": "移動",
+    "evt.longpress": "長押し",
+    "evt.wait": "待機",
+    "opt.tap": "タップ",
+    "opt.swipe": "スワイプ",
+    "opt.longpress": "長押し",
+    "opt.label": "ラベル",
+    "opt.goto": "移動",
+    "opt.wait": "待機",
+    "field.x": "X",
+    "field.y": "Y",
+    "field.x1": "X1",
+    "field.y1": "Y1",
+    "field.x2": "X2",
+    "field.y2": "Y2",
+    "field.duration": "時長(s)",
+    "label.labelName": "ラベル名",
+    "field.wait_duration": "時長(s)",
+    "field.interval": "間隔(s)",
+    "field.wait_ms": "時長(ms)",
+    "cond.repeat": " 条件: 実行 {n} 回",
+    "cond.colorDesc": " 条件: 色 {color} 許容 {tol} 半径 {radius}{coords}",
+    "cond.coords": " 座標({x},{y})",
+    "log.add.tap": "追加 TAP ({x}, {y})",
+    "log.update.tap": "更新 TAP ({x}, {y})",
+    "log.add.swipe": "追加 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.update.swipe": "更新 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.add.label": "ラベルを追加 {name}",
+    "log.update.label": "ラベルを更新 {name}",
+    "log.add.goto": "GOTO を追加 {name}{cond}",
+    "log.update.goto": "GOTO を更新 {name}{cond}",
+    "log.add.longpress": "追加 LONGPRESS ({x}, {y}) {duration}ms",
+    "log.update.longpress": "更新 LONGPRESS ({x}, {y}) {duration}ms",
+    "log.add.wait": "追加 WAIT {dur}ms",
+    "log.update.wait": "更新 WAIT {dur}ms",
+    "log.playEvent.tap": "再生 TAP ({x}, {y})",
+    "log.playEvent.swipe": "再生 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.playEvent.longpress": "再生 LONGPRESS ({x}, {y}) {duration}ms",
+    "log.gotoEncounter": "GOTO に到達 {name}",
+    "log.gotoColorCond": "GOTO {name} 条件 color: サンプル {sampled} 距離 {dist}",
+    "log.gotoColorNotMet": "GOTO {name} 条件 color 未達、スキップ",
+    "log.gotoRepeatExec": "GOTO {name} 条件 repeat: {n} 回目、ジャンプ実行",
+    "log.gotoRepeatSkip": "GOTO {name} 条件 repeat: 回数に達したためスキップ",
+    "log.gotoNoCond": "GOTO {name} 条件なし、ジャンプ実行",
+    "log.tagNotFound": "タグ {name} が見つかりません",
+    "log.playFromTagStart": "タグ {name} から再生開始",
+    "log.playFromTagDone": "タグ {name} からの再生完了",
+    "label.hasCond": " （条件あり）",
+    "log.exec.tap": "実行 TAP ({x}, {y})",
+    "log.exec.swipe": "実行 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
+    "log.exec.longpress": "実行 LONGPRESS ({x}, {y}) {duration}ms",
+  },
+};
+
+function detectLangKey() {
+  const nav = navigator.language || navigator.userLanguage || "";
+  if (nav.startsWith("ja")) return "ja";
+  if (nav.startsWith("en")) return "en";
+  return "zh";
+}
+
+let LANG = detectLangKey();
+
+function t(key, vars) {
+  const dict = I18N[LANG] || I18N.zh;
+  let v = dict[key] || key;
+  if (vars) {
+    Object.keys(vars).forEach((k) => {
+      v = v.replace(new RegExp(`\{${k}\}`, "g"), String(vars[k]));
+    });
+  }
+  return v;
+}
+
+function applyI18n() {
+  document.querySelectorAll("[data-i18n-key]").forEach((el) => {
+    const key = el.dataset.i18nKey;
+    if (!key) return;
+    // if element is input placeholder
+    if (el.tagName === "INPUT" && el.placeholder !== undefined) {
+      el.placeholder = t(key);
+    } else {
+      el.textContent = t(key);
+    }
+  });
+}
+
+function updateDynamicTexts() {
+  // update dynamic button labels and stateful texts
+  if (recordBtn) recordBtn.textContent = isRecording ? t('btn.record.stop') : t('btn.record.start');
+  if (pauseBtn) pauseBtn.textContent = isPaused ? t('btn.resume') : t('btn.pause');
+  if (playBtn) playBtn.textContent = t('btn.play');
+  if (saveBtn) saveBtn.textContent = t('btn.save');
+  const loadLabel = document.querySelector('label[for="loadInput"]');
+  if (loadLabel) loadLabel.textContent = t('btn.load');
+  if (themeToggleBtn) themeToggleBtn.textContent = t('btn.themeToggle');
+  // ensure status text respects current connection state when language changes
+  if (typeof statusEl !== 'undefined' && statusEl) {
+    const connected = typeof ws !== 'undefined' && ws && ws.readyState === WebSocket.OPEN;
+    statusEl.textContent = connected ? t('status.connected') : t('status.disconnected');
+  }
+}
+
+function setLang(l) {
+  if (!I18N[l]) return;
+  LANG = l;
+  applyI18n();
+  updateDynamicTexts();
+  const sel = document.getElementById('langSelect');
+  if (sel) sel.value = l;
+}
+
+// apply immediately and wire selector
+document.addEventListener("DOMContentLoaded", () => {
+  applyI18n();
+  updateDynamicTexts();
+  const sel = document.getElementById('langSelect');
+  if (sel) {
+    sel.value = LANG;
+    sel.addEventListener('change', (e) => {
+      const v = e.target.value;
+      setLang(v);
+    });
+  }
+});
+
 ws.addEventListener("open", () => {
-  statusEl.textContent = "已连接";
-  addLog("WebSocket 已连接");
+  statusEl.textContent = t('status.connected');
+  addLog(t('log.websocketConnected'));
 });
 
 ws.addEventListener("close", () => {
-  statusEl.textContent = "连接已断开";
-  addLog("WebSocket 已断开");
+  statusEl.textContent = t('status.disconnected');
+  addLog(t('log.websocketDisconnected'));
 });
 
 const BLANK_IMG =
@@ -173,29 +594,29 @@ function startPlayback(events, options = {}) {
       if (!isPlaying) return;
       if (evt.type === "tap") {
         sendTap(evt.x, evt.y, { playback: true });
-        if (options.logEvents) addLog(`回放 TAP (${Math.round(evt.x)}, ${Math.round(evt.y)})`);
+        if (options.logEvents) addLog(t('log.playEvent.tap', { x: Math.round(evt.x), y: Math.round(evt.y) }));
       } else if (evt.type === "swipe") {
         sendSwipe(evt.x1, evt.y1, evt.x2, evt.y2, evt.duration, { playback: true });
         if (options.logEvents)
-          addLog(`回放 SWIPE (${Math.round(evt.x1)}, ${Math.round(evt.y1)}) → (${Math.round(evt.x2)}, ${Math.round(evt.y2)})`);
+          addLog(t('log.playEvent.swipe', { x1: Math.round(evt.x1), y1: Math.round(evt.y1), x2: Math.round(evt.x2), y2: Math.round(evt.y2) }));
       } else if (evt.type === "longpress") {
         sendLongPress(evt.x, evt.y, evt.duration, { playback: true });
-        if (options.logEvents) addLog(`回放 LONGPRESS (${Math.round(evt.x)}, ${Math.round(evt.y)}) ${Math.round(evt.duration)}ms`);
+        if (options.logEvents) addLog(t('log.playEvent.longpress', { x: Math.round(evt.x), y: Math.round(evt.y), duration: Math.round(evt.duration) }));
       } else if (evt.type === "goto") {
         // 当回放遇到 goto，先评估条件（若存在），满足则停止当前回放并从标签处继续
-        if (options.logEvents) addLog(`遇到 GOTO ${evt.name}`);
+        if (options.logEvents) addLog(t('log.gotoEncounter', { name: evt.name }));
         const cond = evt.cond || null;
         // 优先处理 color 条件并直接返回，避免后续重复处理
         if (cond && cond.type === "color") {
           const sampled = sampleAtCond(cond);
           const dist = colorDistanceHex(sampled, String(cond.color || ""));
-          if (options.logEvents) addLog(`GOTO ${evt.name} 条件 color: 采样 ${sampled} 距离 ${Math.round(dist)}`);
+          if (options.logEvents) addLog(t('log.gotoColorCond', { name: evt.name, sampled, dist: Math.round(dist) }));
           const tol = Number(cond.tol || 0);
           if (dist <= tol) {
             stopPlayback();
             gotoTag(evt.name);
           } else {
-            if (options.logEvents) addLog(`GOTO ${evt.name} 条件 color 未满足，跳过`);
+            if (options.logEvents) addLog(t('log.gotoColorNotMet', { name: evt.name }));
           }
           return;
         }
@@ -205,11 +626,11 @@ function startPlayback(events, options = {}) {
             const times = Number(cond.times || 0);
             if (cond._executed < times) {
               cond._executed += 1;
-              if (options.logEvents) addLog(`GOTO ${evt.name} 条件 repeat: 第 ${cond._executed} 次，执行跳转`);
+              if (options.logEvents) addLog(t('log.gotoRepeatExec', { name: evt.name, n: cond._executed }));
               stopPlayback();
               gotoTag(evt.name);
             } else {
-              if (options.logEvents) addLog(`GOTO ${evt.name} 条件 repeat: 已达到次数，跳过`);
+              if (options.logEvents) addLog(t('log.gotoRepeatSkip', { name: evt.name }));
             }
           } else if (cond.type === "color") {
             // 在屏幕中心采样
@@ -218,13 +639,13 @@ function startPlayback(events, options = {}) {
             const radius = Math.max(0, Math.floor(Number(cond.radius || 3)));
             const sampled = sampleAverageColor(cx, cy, radius);
             const dist = colorDistanceHex(sampled, String(cond.color || ""));
-            if (options.logEvents) addLog(`GOTO ${evt.name} 条件 color: 采样 ${sampled} 距离 ${Math.round(dist)}`);
+            if (options.logEvents) addLog(t('log.gotoColorCond', { name: evt.name, sampled, dist: Math.round(dist) }));
             const tol = Number(cond.tol || 0);
             if (dist <= tol) {
               stopPlayback();
               gotoTag(evt.name);
             } else {
-              if (options.logEvents) addLog(`GOTO ${evt.name} 条件 color 未满足，跳过`);
+              if (options.logEvents) addLog(t('log.gotoColorNotMet', { name: evt.name }));
             }
           } else {
             // 未知条件类型，直接跳转
@@ -233,7 +654,7 @@ function startPlayback(events, options = {}) {
           }
         } else {
           // 无条件直接跳转
-          if (options.logEvents) addLog(`GOTO ${evt.name} 无条件，执行跳转`);
+          if (options.logEvents) addLog(t('log.gotoNoCond', { name: evt.name }));
           stopPlayback();
           gotoTag(evt.name);
         }
@@ -271,26 +692,26 @@ function getEventIntervals(events) {
 
 function renderEventList() {
   if (!recordedEvents.length) {
-    eventListEl.innerHTML = '<div class="empty">暂无操作记录</div>';
+    eventListEl.innerHTML = `<div class="empty">${t('empty.events')}</div>`;
     return;
   }
   const intervals = getEventIntervals(recordedEvents);
   const items = recordedEvents
     .slice(0, 200)
     .map((evt, index) => {
-      const deleteHtml = `<button class="evt-del" data-index="${index}" aria-label="删除">×</button>`;
+      const deleteHtml = `<button class="evt-del" data-index="${index}" aria-label="${t('btn.delete')}">×</button>`;
       if (evt.type === "tap") {
         return `<li class="event-item" draggable="true" data-index="${index}">
           ${deleteHtml}
           <div class="event-main">
-            <span class="tag">TAP</span>
-            <span class="event-label">X</span>
+            <span class="tag">${t('evt.tap')}</span>
+            <span class="event-label">${t('field.x')}</span>
             <span class="event-value" data-index="${index}" data-field="x" data-step="0.1">${Number(evt.x ?? 0).toFixed(1)}</span>
-            <span class="event-label">Y</span>
+            <span class="event-label">${t('field.y')}</span>
             <span class="event-value" data-index="${index}" data-field="y" data-step="0.1">${Number(evt.y ?? 0).toFixed(1)}</span>
           </div>
           <div class="event-meta">
-            <span class="event-label">间隔(s)</span>
+            <span class="event-label">${t('field.interval')}</span>
             <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
           </div>
         </li>`;
@@ -299,20 +720,20 @@ function renderEventList() {
         return `<li class="event-item" draggable="true" data-index="${index}">
           ${deleteHtml}
           <div class="event-main">
-            <span class="tag">SWIPE</span>
-            <span class="event-label">X1</span>
+            <span class="tag">${t('evt.swipe')}</span>
+            <span class="event-label">${t('field.x1')}</span>
             <span class="event-value" data-index="${index}" data-field="x1" data-step="0.1">${Number(evt.x1 ?? 0).toFixed(1)}</span>
-            <span class="event-label">Y1</span>
+            <span class="event-label">${t('field.y1')}</span>
             <span class="event-value" data-index="${index}" data-field="y1" data-step="0.1">${Number(evt.y1 ?? 0).toFixed(1)}</span>
-            <span class="event-label">X2</span>
+            <span class="event-label">${t('field.x2')}</span>
             <span class="event-value" data-index="${index}" data-field="x2" data-step="0.1">${Number(evt.x2 ?? 0).toFixed(1)}</span>
-            <span class="event-label">Y2</span>
+            <span class="event-label">${t('field.y2')}</span>
             <span class="event-value" data-index="${index}" data-field="y2" data-step="0.1">${Number(evt.y2 ?? 0).toFixed(1)}</span>
-            <span class="event-label">时长(s)</span>
+            <span class="event-label">${t('field.duration')}</span>
             <span class="event-value" data-index="${index}" data-field="duration" data-step="0.01">${formatSeconds(evt.duration)}</span>
           </div>
           <div class="event-meta">
-            <span class="event-label">间隔(s)</span>
+            <span class="event-label">${t('field.interval')}</span>
             <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
           </div>
         </li>`;
@@ -321,11 +742,11 @@ function renderEventList() {
         return `<li class="event-item" draggable="true" data-index="${index}">
           ${deleteHtml}
           <div class="event-main">
-            <span class="tag">LABEL</span>
+            <span class="tag">${t('evt.label')}</span>
             <span class="event-value" data-index="${index}" data-field="name">${(evt.name || "").toString().replace(/</g, "&lt;")}</span>
           </div>
           <div class="event-meta">
-            <span class="event-label">间隔(s)</span>
+            <span class="event-label">${t('field.interval')}</span>
             <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
           </div>
         </li>`;
@@ -333,21 +754,21 @@ function renderEventList() {
       if (evt.type === "goto") {
         let condDesc = "";
         if (evt.cond) {
-          if (evt.cond.type === "repeat") condDesc = ` 条件: 执行 ${Number(evt.cond.times || 0)} 次`;
+          if (evt.cond.type === "repeat") condDesc = t('cond.repeat', { n: Number(evt.cond.times || 0) });
           else if (evt.cond.type === "color") {
-            const cx = evt.cond.x != null ? ` 坐标(${Math.round(evt.cond.x)},${Math.round(evt.cond.y)})` : "";
-            condDesc = ` 条件: 颜色 ${String(evt.cond.color || "")} 容差 ${Number(evt.cond.tol || 0)} 半径 ${Number(evt.cond.radius || 0)}${cx}`;
+            const cx = evt.cond.x != null ? t('cond.coords', { x: Math.round(evt.cond.x), y: Math.round(evt.cond.y) }) : "";
+            condDesc = t('cond.colorDesc', { color: String(evt.cond.color || ""), tol: Number(evt.cond.tol || 0), radius: Number(evt.cond.radius || 0), coords: cx });
           }
         }
         return `<li class="event-item" draggable="true" data-index="${index}">
           ${deleteHtml}
           <div class="event-main">
-            <span class="tag">GOTO</span>
+            <span class="tag">${t('evt.goto')}</span>
             <span class="event-value" data-index="${index}" data-field="name">${(evt.name || "").toString().replace(/</g, "&lt;")}</span>
             <span class="cond-desc">${condDesc}</span>
           </div>
           <div class="event-meta">
-            <span class="event-label">间隔(s)</span>
+            <span class="event-label">${t('field.interval')}</span>
             <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
           </div>
         </li>`;
@@ -356,16 +777,16 @@ function renderEventList() {
         return `<li class="event-item" draggable="true" data-index="${index}">
           ${deleteHtml}
           <div class="event-main">
-            <span class="tag">LONGPRESS</span>
-            <span class="event-label">X</span>
+            <span class="tag">${t('evt.longpress')}</span>
+            <span class="event-label">${t('field.x')}</span>
             <span class="event-value" data-index="${index}" data-field="x" data-step="0.1">${Number(evt.x ?? 0).toFixed(1)}</span>
-            <span class="event-label">Y</span>
+            <span class="event-label">${t('field.y')}</span>
             <span class="event-value" data-index="${index}" data-field="y" data-step="0.1">${Number(evt.y ?? 0).toFixed(1)}</span>
-            <span class="event-label">时长(s)</span>
+            <span class="event-label">${t('field.duration')}</span>
             <span class="event-value" data-index="${index}" data-field="duration" data-step="0.01">${formatSeconds(evt.duration)}</span>
           </div>
           <div class="event-meta">
-            <span class="event-label">间隔(s)</span>
+            <span class="event-label">${t('field.interval')}</span>
             <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
           </div>
         </li>`;
@@ -374,12 +795,12 @@ function renderEventList() {
         return `<li class="event-item" draggable="true" data-index="${index}">
           ${deleteHtml}
           <div class="event-main">
-            <span class="tag">WAIT</span>
-            <span class="event-label">时长(ms)</span>
+            <span class="tag">${t('evt.wait')}</span>
+            <span class="event-label">${t('field.wait_ms')}</span>
             <span class="event-value" data-index="${index}" data-field="interval" data-step="1">${formatSeconds(intervals[index])}</span>
           </div>
           <div class="event-meta">
-            <span class="event-label">间隔(s)</span>
+            <span class="event-label">${t('field.interval')}</span>
             <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
           </div>
         </li>`;
@@ -473,7 +894,7 @@ eventListEl.addEventListener("click", (event) => {
     const pickBtn = document.createElement("button");
     pickBtn.type = "button";
     pickBtn.className = "inline-pick-btn btn";
-    pickBtn.textContent = "取点";
+    pickBtn.textContent = t('btn.pickPoint');
     pickBtn.addEventListener("click", (ev) => {
       ev.stopPropagation();
       startPointPickForInput(input);
@@ -494,10 +915,10 @@ function addCustomEvent() {
     const y = Number(addY.value) || 0;
     if (editIndex >= 0 && recordedEvents[editIndex]) {
       recordedEvents[editIndex] = { ...recordedEvents[editIndex], type: "tap", x, y, t: recordedEvents[editIndex].t || defaultInterval };
-      addLog(`更新 TAP (${Math.round(x)}, ${Math.round(y)})`);
+      addLog(t('log.update.tap', { x: Math.round(x), y: Math.round(y) }));
     } else {
       recordedEvents.push({ type: "tap", x, y, t: defaultInterval });
-      addLog(`添加 TAP (${Math.round(x)}, ${Math.round(y)})`);
+      addLog(t('log.add.tap', { x: Math.round(x), y: Math.round(y) }));
     }
   } else if (type === "swipe") {
     const x1 = Number(addX.value) || 0;
@@ -509,19 +930,19 @@ function addCustomEvent() {
     const duration = Math.max(0, Math.round(durationSec * 1000));
     if (editIndex >= 0 && recordedEvents[editIndex]) {
       recordedEvents[editIndex] = { ...recordedEvents[editIndex], type: "swipe", x1, y1, x2, y2, duration, t: recordedEvents[editIndex].t || defaultInterval };
-      addLog(`更新 SWIPE (${Math.round(x1)}, ${Math.round(y1)}) → (${Math.round(x2)}, ${Math.round(y2)})`);
+      addLog(t('log.update.swipe', { x1: Math.round(x1), y1: Math.round(y1), x2: Math.round(x2), y2: Math.round(y2) }));
     } else {
       recordedEvents.push({ type: "swipe", x1, y1, x2, y2, duration, t: defaultInterval });
-      addLog(`添加 SWIPE (${Math.round(x1)}, ${Math.round(y1)}) → (${Math.round(x2)}, ${Math.round(y2)})`);
+      addLog(t('log.add.swipe', { x1: Math.round(x1), y1: Math.round(y1), x2: Math.round(x2), y2: Math.round(y2) }));
     }
   } else if (type === "label") {
     const name = String(addLabelName.value || "").trim() || `label${Date.now()}`;
     if (editIndex >= 0 && recordedEvents[editIndex]) {
       recordedEvents[editIndex] = { ...recordedEvents[editIndex], type: "label", name, t: recordedEvents[editIndex].t || defaultInterval };
-      addLog(`更新 标签 ${name}`);
+      addLog(t('log.update.label', { name }));
     } else {
       recordedEvents.push({ type: "label", name, t: defaultInterval });
-      addLog(`添加 标签 ${name}`);
+      addLog(t('log.add.label', { name }));
     }
   } else if (type === "goto") {
     const name = String(addLabelName.value || "").trim() || `label${Date.now()}`;
@@ -538,12 +959,13 @@ function addCustomEvent() {
       const cy = addCondY && addCondY.value ? Number(addCondY.value) : addCondSampleY;
       cond = { type: "color", color, tol, radius, x: Number.isFinite(cx) ? cx : null, y: Number.isFinite(cy) ? cy : null };
     }
+    const condText = cond ? t('label.hasCond') : '';
     if (editIndex >= 0 && recordedEvents[editIndex]) {
       recordedEvents[editIndex] = { ...recordedEvents[editIndex], type: "goto", name, t: recordedEvents[editIndex].t || defaultInterval, cond };
-      addLog(`更新 GOTO ${name}${cond ? " （有条件）" : ""}`);
+      addLog(t('log.update.goto', { name, cond: condText }));
     } else {
       recordedEvents.push({ type: "goto", name, t: defaultInterval, cond });
-      addLog(`添加 GOTO ${name}${cond ? " （有条件）" : ""}`);
+      addLog(t('log.add.goto', { name, cond: condText }));
     }
   }
   else if (type === "longpress") {
@@ -553,10 +975,10 @@ function addCustomEvent() {
     const duration = Math.max(0, Math.round(durationSec * 1000));
     if (editIndex >= 0 && recordedEvents[editIndex]) {
       recordedEvents[editIndex] = { ...recordedEvents[editIndex], type: "longpress", x, y, duration, t: recordedEvents[editIndex].t || defaultInterval };
-      addLog(`更新 LONGPRESS (${Math.round(x)}, ${Math.round(y)}) ${duration}ms`);
+      addLog(t('log.update.longpress', { x: Math.round(x), y: Math.round(y), duration }));
     } else {
       recordedEvents.push({ type: "longpress", x, y, duration, t: defaultInterval });
-      addLog(`添加 LONGPRESS (${Math.round(x)}, ${Math.round(y)}) ${duration}ms`);
+      addLog(t('log.add.longpress', { x: Math.round(x), y: Math.round(y), duration }));
     }
   }
   else if (type === "wait") {
@@ -565,10 +987,10 @@ function addCustomEvent() {
     const dur = Math.max(0, Math.floor(sec * 1000));
     if (editIndex >= 0 && recordedEvents[editIndex]) {
       recordedEvents[editIndex] = { ...recordedEvents[editIndex], type: "wait", t: dur };
-      addLog(`更新 WAIT ${dur}ms`);
+      addLog(t('log.update.wait', { dur }));
     } else {
       recordedEvents.push({ type: "wait", t: dur });
-      addLog(`添加 WAIT ${dur}ms`);
+      addLog(t('log.add.wait', { dur }));
     }
   }
   renderEventList();
@@ -712,26 +1134,27 @@ if (addCondPickBtn) {
   addCondPickBtn.addEventListener("click", () => {
     // 开始取色时隐藏 modal（不重置编辑索引），等待画面点击采样；取消取色则重新打开 modal
     if (!pickActive) {
-      pickActive = true;
-      if (addModal) addModal.setAttribute("aria-hidden", "true");
-      if (cursorInfoEl) {
-        cursorInfoEl.innerHTML = `<div>取色中：在画面点击采样，或再次点击“取消取色”</div>`;
-        cursorInfoEl.classList.remove("hidden");
-        cursorInfoEl.setAttribute("aria-hidden", "false");
+        pickActive = true;
+        if (addModal) addModal.setAttribute("aria-hidden", "true");
+        if (cursorInfoEl) {
+          cursorInfoEl.innerHTML = `<div>${t('picker.infoColor')}</div>`;
+          cursorInfoEl.classList.remove("hidden");
+          cursorInfoEl.setAttribute("aria-hidden", "false");
+        }
+        if (addCondPickBtn) addCondPickBtn.textContent = t('picker.cancel');
+      } else {
+        pickActive = false;
+        addCondPickBtn.classList.remove("active");
+        addCondPickBtn.textContent = t('picker.pick');
+        if (addModal) {
+          addModal.setAttribute("aria-hidden", "false");
+          setTimeout(updateAddModalFields, 0);
+        }
+        if (cursorInfoEl) {
+          cursorInfoEl.classList.add("hidden");
+          cursorInfoEl.setAttribute("aria-hidden", "true");
+        }
       }
-    } else {
-      pickActive = false;
-      addCondPickBtn.classList.remove("active");
-      addCondPickBtn.textContent = "取色";
-      if (addModal) {
-        addModal.setAttribute("aria-hidden", "false");
-        setTimeout(updateAddModalFields, 0);
-      }
-      if (cursorInfoEl) {
-        cursorInfoEl.classList.add("hidden");
-        cursorInfoEl.setAttribute("aria-hidden", "true");
-      }
-    }
   });
 }
 
@@ -804,12 +1227,12 @@ function gotoTag(name) {
   if (!name) return;
   const idx = recordedEvents.findIndex((e) => e && e.type === "label" && e.name === name);
   if (idx === -1) {
-    addLog(`未找到标签 ${name}`);
+    addLog(t('log.tagNotFound', { name }));
     return;
   }
   const slice = recordedEvents.slice(idx).map((e) => ({ ...e }));
-  startPlayback(slice, { markButton: true, logEvents: true, onDone: () => addLog(`从标签 ${name} 回放完成`) });
-  addLog(`从标签 ${name} 开始回放`);
+  startPlayback(slice, { markButton: true, logEvents: true, onDone: () => addLog(t('log.playFromTagDone', { name })) });
+  addLog(t('log.playFromTagStart', { name }));
 }
 
 // goto input/button removed; use modal to add goto events
@@ -862,7 +1285,7 @@ eventListEl.addEventListener("drop", (e) => {
 
 function renderLogList() {
   if (!logs.length) {
-    logListEl.innerHTML = '<div class="empty">暂无执行日志</div>';
+    logListEl.innerHTML = `<div class="empty">${t('empty.logs')}</div>`;
     return;
   }
   const items = logs
@@ -935,7 +1358,7 @@ function startPointPickForInput(inputEl) {
     pickReturnModal = false;
   }
   if (cursorInfoEl) {
-    cursorInfoEl.innerHTML = `<div>取点中：在画面点击采样，或按 Esc 取消</div>`;
+    cursorInfoEl.innerHTML = `<div>${t('picker.infoPoint')}</div>`;
     cursorInfoEl.classList.remove("hidden");
     cursorInfoEl.setAttribute("aria-hidden", "false");
   }
@@ -953,7 +1376,7 @@ function startPointPickForModalField(fieldId) {
     pickReturnModal = false;
   }
   if (cursorInfoEl) {
-    cursorInfoEl.innerHTML = `<div>取点中：在画面点击采样，或按 Esc 取消</div>`;
+    cursorInfoEl.innerHTML = `<div>${t('picker.infoPoint')}</div>`;
     cursorInfoEl.classList.remove("hidden");
     cursorInfoEl.setAttribute("aria-hidden", "false");
   }
@@ -1005,7 +1428,7 @@ screenEl.addEventListener("pointerdown", (event) => {
       if (addCondX) addCondX.value = Math.round(x);
       if (addCondY) addCondY.value = Math.round(y);
       if (addCondPickBtn) addCondPickBtn.classList.remove("active");
-      addLog(`已采样颜色 ${hex}`);
+      addLog(t('log.colorSampled', { hex }));
       // return to modal
       if (addModal && pickReturnModal) {
         addModal.setAttribute("aria-hidden", "false");
@@ -1037,7 +1460,7 @@ screenEl.addEventListener("pointerdown", (event) => {
           if (addX2) addX2.value = rx;
           if (addY2) addY2.value = ry;
         }
-        addLog(`已采样坐标 (${rx}, ${ry})`);
+        addLog(t('log.coordSampled', { x: rx, y: ry }));
         pickActive = false;
         if (cursorInfoEl) {
           cursorInfoEl.classList.add("hidden");
@@ -1071,7 +1494,7 @@ screenEl.addEventListener("pointerdown", (event) => {
             evt.y2 = ry;
           }
           renderEventList();
-          addLog(`已采样坐标并更新事件 ${idx} -> (${rx}, ${ry})`);
+          addLog(t('log.coordSampled', { x: rx, y: ry }));
         }
         pickActive = false;
         if (cursorInfoEl) {
@@ -1125,18 +1548,16 @@ screenEl.addEventListener("pointerup", (event) => {
       const dur = Math.round(holdTime);
       sendLongPress(dragStart.x, dragStart.y, dur);
       recordEvent({ type: "longpress", x: dragStart.x, y: dragStart.y, duration: dur });
-      addLog(`执行 LONGPRESS (${Math.round(dragStart.x)}, ${Math.round(dragStart.y)}) ${dur}ms`);
+      addLog(t('log.exec.longpress', { x: Math.round(dragStart.x), y: Math.round(dragStart.y), duration: dur }));
     } else {
       sendTap(dragStart.x, dragStart.y);
       recordEvent({ type: "tap", x: dragStart.x, y: dragStart.y });
-      addLog(`执行 TAP (${Math.round(dragStart.x)}, ${Math.round(dragStart.y)})`);
+      addLog(t('log.exec.tap', { x: Math.round(dragStart.x), y: Math.round(dragStart.y) }));
     }
   } else {
     sendSwipe(dragStart.x, dragStart.y, x, y, duration);
     recordEvent({ type: "swipe", x1: dragStart.x, y1: dragStart.y, x2: x, y2: y, duration });
-    addLog(
-      `执行 SWIPE (${Math.round(dragStart.x)}, ${Math.round(dragStart.y)}) → (${Math.round(x)}, ${Math.round(y)})`
-    );
+    addLog(t('log.exec.swipe', { x1: Math.round(dragStart.x), y1: Math.round(dragStart.y), x2: Math.round(x), y2: Math.round(y) }));
   }
 
   dragStart = null;
@@ -1154,22 +1575,22 @@ recordBtn.addEventListener("click", () => {
     recordStart = performance.now();
     isRecording = true;
     isPaused = false;
-    recordBtn.textContent = "停止录制";
+    recordBtn.textContent = t('btn.record.stop');
     recordBtn.classList.add("active");
     pauseBtn.disabled = false;
-    pauseBtn.textContent = "暂停录制";
+    pauseBtn.textContent = t('btn.pause');
     pauseBtn.classList.remove("active");
     renderEventList();
-    addLog("开始录制");
+    addLog(t('log.startRecord'));
   } else {
     isRecording = false;
     isPaused = false;
-    recordBtn.textContent = "开始录制";
+    recordBtn.textContent = t('btn.record.start');
     recordBtn.classList.remove("active");
     pauseBtn.disabled = true;
-    pauseBtn.textContent = "暂停录制";
+    pauseBtn.textContent = t('btn.pause');
     pauseBtn.classList.remove("active");
-    addLog("停止录制");
+    addLog(t('log.stopRecord'));
   }
 });
 
@@ -1177,20 +1598,20 @@ pauseBtn.addEventListener("click", () => {
   if (!isRecording) return;
   isPaused = !isPaused;
   if (isPaused) {
-    pauseBtn.textContent = "继续录制";
+    pauseBtn.textContent = t('btn.resume');
     pauseBtn.classList.add("active");
-    addLog("录制已暂停");
+    addLog(t('log.pauseRecord'));
   } else {
-    pauseBtn.textContent = "暂停录制";
+    pauseBtn.textContent = t('btn.pause');
     pauseBtn.classList.remove("active");
-    addLog("录制继续");
+    addLog(t('log.resumeRecord'));
   }
 });
 
 playBtn.addEventListener("click", () => {
   if (isPlaying) {
     stopPlayback();
-    addLog("停止回放");
+    addLog(t('log.stopPlayback'));
     return;
   }
   if (!recordedEvents.length) return;
@@ -1199,10 +1620,10 @@ playBtn.addEventListener("click", () => {
     markButton: true,
     logEvents: true,
     onDone: () => {
-      addLog("回放完成");
+      addLog(t('log.playbackDone'));
     },
   });
-  addLog("开始回放");
+  addLog(t('log.startPlayback'));
 });
 
 saveBtn.addEventListener("click", () => {
@@ -1233,7 +1654,7 @@ loadInput.addEventListener("change", async (event) => {
     }
     recordedEvents = parsed.filter((e) => e && (e.type === "tap" || e.type === "swipe" || e.type === "label" || e.type === "goto" || e.type === "wait" || e.type === "longpress"));
     renderEventList();
-    addLog("已加载 JSON");
+    addLog(t('log.loadedJson'));
   } catch {
     return;
   } finally {
@@ -1266,17 +1687,17 @@ function runScheduledLoop() {
     scheduleLoopsLeft -= 1;
   }
 
-  startPlayback(recordedEvents, {
+    startPlayback(recordedEvents, {
     markButton: false,
     logEvents: true,
     onDone: () => {
       if (!scheduleActive) return;
       const interval = Math.max(0, Number(intervalInput.value || 0));
-      addLog("本轮回放完成，等待下次执行");
+        addLog(t('log.scheduledRoundComplete'));
       scheduleTimerId = setTimeout(runScheduledLoop, interval);
     },
   });
-  addLog("定时任务开始执行");
+    addLog(t('log.scheduledStart'));
 }
 
 function getDelayFromTimeValue(timeValue) {
@@ -1319,7 +1740,7 @@ scheduleBtn.addEventListener("click", () => {
   scheduleLoopsLeft = loops === 0 ? Infinity : loops;
 
   scheduleTimerId = setTimeout(runScheduledLoop, delay);
-  addLog("定时任务已启动");
+  addLog(t('log.scheduledStart'));
 });
 
 stopScheduleBtn.addEventListener("click", () => {
@@ -1327,7 +1748,7 @@ stopScheduleBtn.addEventListener("click", () => {
   if (isPlaying) {
     stopPlayback({ keepButton: true });
   }
-  addLog("定时任务已停止");
+  addLog(t('log.scheduledStopped'));
 });
 
 renderEventList();
