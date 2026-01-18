@@ -51,19 +51,112 @@
           </div>
         </div>
       </div>
-      <div class="card">
+      
+      <div class="hint">提示：若画面卡顿，可调大采集间隔。</div>
+    </aside>
+    <main class="main">
+      <canvas id="screen"></canvas>
+      <div id="cursorInfo" class="cursor-info" aria-hidden="true"></div>
+    </main>
+    <aside class="rightbar" id="logPanel">
+      <div class="drag-handle" id="logHandle" title="拖拽调整宽度"></div>
+      <div class="card events-card">
         <div class="card-title">操作列表</div>
+        <div class="event-controls">
+          <button id="openAddModalBtn" class="btn">添加操作</button>
+        </div>
         <div class="list" id="eventList">
           <div class="empty">暂无操作记录</div>
         </div>
       </div>
-      <div class="hint">提示：若画面卡顿，可调大采集间隔。</div>
-    </aside>
-    <main class="main">
-      <img id="screen" alt="手机画面" />
-    </main>
-    <aside class="rightbar" id="logPanel">
-      <div class="drag-handle" id="logHandle" title="拖拽调整宽度"></div>
+
+      <!-- 添加操作 Modal -->
+      <div id="addModal" class="modal" aria-hidden="true">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content">
+          <h3>添加操作</h3>
+          <div class="modal-row">
+            <label>类型
+              <select id="addType">
+                <option value="tap">TAP</option>
+                <option value="swipe">SWIPE</option>
+                <option value="longpress">LONGPRESS</option>
+                <option value="label">标签</option>
+                <option value="goto">Goto</option>
+                <option value="wait">延时 (Wait)</option>
+              </select>
+            </label>
+          </div>
+          <div class="modal-row">
+            <div class="modal-group" data-for="tap,swipe,longpress">
+              <label>X1 <input id="addX" type="number" value="0" /></label>
+              <label>Y1 <input id="addY" type="number" value="0" /></label>
+            </div>
+          </div>
+          <div class="modal-row">
+            <div class="modal-group" data-for="swipe">
+              <label>X2 <input id="addX2" type="number" value="0" /></label>
+              <label>Y2 <input id="addY2" type="number" value="0" /></label>
+            </div>
+          </div>
+          <div class="modal-row">
+            <div class="modal-group" data-for="swipe,longpress">
+              <label>时长(s) <input id="addDuration" type="number" step="0.01" value="0.30" /></label>
+            </div>
+          </div>
+          <div class="modal-row">
+            <div class="modal-group" data-for="label,goto">
+              <label>标签名 <input id="addLabelName" type="text" value="" /></label>
+            </div>
+          </div>
+          <div class="modal-row">
+            <div class="modal-group" data-for="wait">
+              <label>时长(s) <input id="addWaitDuration" type="number" step="0.1" value="1.0" /></label>
+            </div>
+          </div>
+          <div class="modal-row">
+            <div class="modal-group" data-for="goto">
+              <label>条件
+                <select id="addCondType">
+                  <option value="none">无</option>
+                  <option value="repeat">执行 n 次</option>
+                  <option value="color">屏幕模糊取色</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div class="modal-row">
+            <div class="modal-group" data-for="goto">
+              <label class="cond-repeat" style="display:none">次数
+                <input id="addCondTimes" type="number" min="1" value="1" />
+              </label>
+              <label class="cond-color" style="display:none">颜色
+                <div class="color-picker-row">
+                  <div id="addCondColorPreview" class="color-preview"></div>
+                  <input id="addCondColor" type="text" placeholder="#rrggbb" />
+                  <button id="addCondPickBtn" class="btn">取色</button>
+                </div>
+                <label>容差
+                  <input id="addCondTol" type="number" min="0" value="30" />
+                </label>
+                <label>采样半径
+                  <input id="addCondRadius" type="number" min="0" value="2" />
+                </label>
+                <label>采样坐标
+                  <input id="addCondX" type="number" placeholder="x" />
+                  <input id="addCondY" type="number" placeholder="y" />
+                  <div class="small">提示：可手动填写或使用“取色”在画面上点击采样。</div>
+                </label>
+              </label>
+            </div>
+          </div>
+          <input id="editIndex" type="hidden" value="-1" />
+          <div class="modal-actions">
+            <button id="addEventBtn" class="btn">添加</button>
+            <button id="closeAddModalBtn" class="btn btn-ghost">取消</button>
+          </div>
+        </div>
+      </div>
       <div class="card log-card">
         <div class="card-header">
           <div class="card-title">执行日志</div>

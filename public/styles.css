@@ -198,6 +198,122 @@ body {
   border-radius: 8px;
   background: var(--chip);
   border: 1px solid var(--border);
+  position: relative;
+}
+
+.event-item {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.event-main,
+.event-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.event-label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.event-value {
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px dashed transparent;
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.event-value:hover {
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.event-value.editing {
+  cursor: default;
+}
+
+.event-input-inline {
+  width: 72px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--text);
+  font-size: 11px;
+}
+
+.event-item[draggable="true"] { cursor: grab; }
+.event-item.dragging { opacity: 0.6; }
+.event-item.drag-over { outline: 2px dashed var(--accent); }
+
+.evt-actions .tiny { padding: 4px 6px; font-size: 11px; }
+
+/* 删除圆点 */
+.evt-del {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--button);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+}
+.evt-del:hover {
+  background: var(--button-hover);
+  border-color: var(--border-strong);
+}
+
+/* 光标信息浮层 */
+.cursor-info {
+  position: fixed;
+  pointer-events: none;
+  background: rgba(20, 27, 40, 0.95);
+  color: var(--text);
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+  font-size: 12px;
+  border-radius: 8px;
+  transform: translate(12px, 12px);
+  z-index: 1000;
+  min-width: 80px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.cursor-info.hidden {
+  display: none;
+}
+
+.event-main label,
+.event-meta label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.event-input {
+  width: 74px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--text);
+  font-size: 11px;
 }
 
 .list .tag {
@@ -222,7 +338,7 @@ body {
   box-shadow: -12px 0 30px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
+  overflow: hidden;
   position: relative;
 }
 
@@ -289,6 +405,122 @@ body {
   flex: 1;
   flex-grow: 1;
 }
+
+/* 使操作列表与日志各占右侧一半高度 */
+.rightbar .events-card,
+.rightbar .log-card {
+  flex: 1 1 50%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.rightbar .events-card .list,
+.rightbar .log-card .list {
+  flex: 1 1 auto;
+  max-height: none;
+  overflow: auto;
+}
+
+.events-card .event-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.events-card .event-controls select,
+.events-card .event-controls input {
+  height: 30px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--panel-strong);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.events-card .event-controls .goto-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+/* Modal */
+.modal {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+.modal[aria-hidden="false"] { display: flex; }
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(2px);
+}
+.modal-content {
+  position: relative;
+  min-width: 320px;
+  max-width: 90%;
+  background: var(--panel-strong);
+  border: 1px solid var(--border);
+  padding: 12px;
+  border-radius: 10px;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.modal-row { display:flex; gap:8px; flex-wrap:wrap; }
+.modal-actions { display:flex; gap:8px; justify-content:flex-end; }
+
+/* Modal 表单样式：统一与界面控件一致 */
+.modal-content h3 {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+.modal-row label {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 120px;
+}
+.modal-row input[type="number"],
+.modal-row input[type="text"],
+.modal-row select {
+  height: 36px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  box-sizing: border-box;
+}
+.modal-row input[type="number"]::-webkit-outer-spin-button,
+.modal-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.modal-row .full-width { min-width: 220px; flex: 1 1 auto; }
+.modal-actions .btn { min-width: 84px; }
+
+/* 更紧凑的表单排列在小屏幕 */
+@media (max-width: 520px) {
+  .modal-row label { min-width: 100%; }
+  .modal-content { padding: 10px; }
+}
+
+/* 颜色取色器样式 */
+.color-picker-row { display:flex; gap:8px; align-items:center; }
+.color-preview { width: 28px; height: 28px; border-radius:6px; border:1px solid var(--border); background: #000; }
+.color-preview.empty { background: transparent; opacity: 0.6; }
+.cond-color input[type="text"] { width: 120px; }
 
 .btn-ghost {
   background: transparent;
