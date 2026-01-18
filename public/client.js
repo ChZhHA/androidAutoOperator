@@ -37,6 +37,8 @@ const editIndexEl = document.getElementById("editIndex");
 let pickActive = false;
 let addCondSampleX = null;
 let addCondSampleY = null;
+let pickTarget = null; // { mode: 'modal'|'inline', input: HTMLElement, index?: number, field?: string }
+let pickReturnModal = false;
 const addCondX = document.getElementById("addCondX");
 const addCondY = document.getElementById("addCondY");
 const cursorInfoEl = document.getElementById("cursorInfo");
@@ -461,9 +463,23 @@ eventListEl.addEventListener("click", (event) => {
   });
   input.addEventListener("blur", () => finish(true));
 
+  
+
   target.classList.add("editing");
   target.textContent = "";
+  // append input and an explicit inline pick button for coordinate fields
   target.appendChild(input);
+  if (["x", "y", "x1", "y1", "x2", "y2"].includes(field)) {
+    const pickBtn = document.createElement("button");
+    pickBtn.type = "button";
+    pickBtn.className = "inline-pick-btn btn";
+    pickBtn.textContent = "取点";
+    pickBtn.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      startPointPickForInput(input);
+    });
+    target.appendChild(pickBtn);
+  }
   input.focus();
   input.select();
 });
@@ -718,6 +734,12 @@ if (addCondPickBtn) {
     }
   });
 }
+
+// modal coordinate pick buttons (explicit trigger)
+const addCoordPickBtn = document.getElementById("addCoordPickBtn");
+if (addCoordPickBtn) addCoordPickBtn.addEventListener("click", () => startPointPickForModalField("addX"));
+const addCoordPickBtn2 = document.getElementById("addCoordPickBtn2");
+if (addCoordPickBtn2) addCoordPickBtn2.addEventListener("click", () => startPointPickForModalField("addX2"));
 if (addCondColor) {
   addCondColor.addEventListener("input", () => {
     if (addCondColorPreview) addCondColorPreview.style.background = addCondColor.value || "transparent";
@@ -750,11 +772,33 @@ if (cursorInfoEl && screenEl) {
     const x = Math.round(p.x);
     const y = Math.round(p.y);
     const hex = sampleAverageColor(p.x, p.y, 1);
-    showCursorInfo(ev.clientX, ev.clientY, `x:${x} y:${y}`, hex);
+    // only show cursor info while picking or when ctrl pressed
+    if (pickActive || ev.ctrlKey) {
+      showCursorInfo(ev.clientX, ev.clientY, `x:${x} y:${y}`, hex);
+    } else {
+      hideCursorInfo();
+    }
   });
   screenEl.addEventListener("pointerleave", hideCursorInfo);
   screenEl.addEventListener("pointerout", hideCursorInfo);
 }
+
+// allow Esc to cancel pick
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && pickActive) {
+    pickActive = false;
+    pickTarget = null;
+    if (addModal && pickReturnModal) {
+      addModal.setAttribute("aria-hidden", "false");
+      setTimeout(updateAddModalFields, 0);
+    }
+    pickReturnModal = false;
+    if (cursorInfoEl) {
+      cursorInfoEl.classList.add("hidden");
+      cursorInfoEl.setAttribute("aria-hidden", "true");
+    }
+  }
+});
 
 function gotoTag(name) {
   if (!name) return;
@@ -879,6 +923,42 @@ function sampleAtCond(cond) {
   return sampleAverageColor(cx, cy, radius);
 }
 
+function startPointPickForInput(inputEl) {
+  if (!inputEl) return;
+  pickActive = true;
+  pickTarget = { mode: "inline", input: inputEl };
+  // if modal is open, hide it and remember to reopen
+  if (addModal && addModal.getAttribute("aria-hidden") === "false") {
+    pickReturnModal = true;
+    addModal.setAttribute("aria-hidden", "true");
+  } else {
+    pickReturnModal = false;
+  }
+  if (cursorInfoEl) {
+    cursorInfoEl.innerHTML = `<div>取点中：在画面点击采样，或按 Esc 取消</div>`;
+    cursorInfoEl.classList.remove("hidden");
+    cursorInfoEl.setAttribute("aria-hidden", "false");
+  }
+}
+
+function startPointPickForModalField(fieldId) {
+  const el = document.getElementById(fieldId);
+  if (!el) return;
+  pickActive = true;
+  pickTarget = { mode: "modal", inputId: fieldId };
+  if (addModal && addModal.getAttribute("aria-hidden") === "false") {
+    pickReturnModal = true;
+    addModal.setAttribute("aria-hidden", "true");
+  } else {
+    pickReturnModal = false;
+  }
+  if (cursorInfoEl) {
+    cursorInfoEl.innerHTML = `<div>取点中：在画面点击采样，或按 Esc 取消</div>`;
+    cursorInfoEl.classList.remove("hidden");
+    cursorInfoEl.setAttribute("aria-hidden", "false");
+  }
+}
+
 function hexToRgb(hex) {
   if (!hex) return null;
   const m = hex.replace("#", "").trim();
@@ -909,34 +989,101 @@ function colorDistanceHex(aHex, bHex) {
 
 screenEl.addEventListener("pointerdown", (event) => {
   if (!screenEl.width || !screenEl.height) return;
-  // if in pick color mode, sample color and stop
+  // if in pick mode, handle different pick targets
   if (pickActive) {
     const { x, y } = mapPoint(event);
-    const radius = Number(addCondRadius.value || 3);
-    const hex = sampleAverageColor(x, y, radius);
-    if (addCondColor) addCondColor.value = hex;
-    if (addCondColorPreview) addCondColorPreview.style.background = hex;
-    pickActive = false;
-    addCondSampleX = x;
-    addCondSampleY = y;
-    if (addCondX) addCondX.value = Math.round(x);
-    if (addCondY) addCondY.value = Math.round(y);
-    if (addCondPickBtn) addCondPickBtn.classList.remove("active");
-    addLog(`已采样颜色 ${hex}`);
-    // 取色完成后回到 modal 继续编辑
-    if (addModal) {
-      addModal.setAttribute("aria-hidden", "false");
-      setTimeout(() => {
-        updateAddModalFields();
-        if (addCondColor) addCondColor.focus();
-      }, 0);
+    // color pick for goto condition
+    if (pickTarget == null && addCondRadius) {
+      // default legacy color pick path (when user clicked the color pick button)
+      const radius = Number(addCondRadius.value || 3);
+      const hex = sampleAverageColor(x, y, radius);
+      if (addCondColor) addCondColor.value = hex;
+      if (addCondColorPreview) addCondColorPreview.style.background = hex;
+      pickActive = false;
+      addCondSampleX = x;
+      addCondSampleY = y;
+      if (addCondX) addCondX.value = Math.round(x);
+      if (addCondY) addCondY.value = Math.round(y);
+      if (addCondPickBtn) addCondPickBtn.classList.remove("active");
+      addLog(`已采样颜色 ${hex}`);
+      // return to modal
+      if (addModal && pickReturnModal) {
+        addModal.setAttribute("aria-hidden", "false");
+        setTimeout(() => {
+          updateAddModalFields();
+          if (addCondColor) addCondColor.focus();
+        }, 0);
+      }
+      if (cursorInfoEl) {
+        cursorInfoEl.classList.add("hidden");
+        cursorInfoEl.setAttribute("aria-hidden", "true");
+      }
+      event.preventDefault();
+      pickTarget = null;
+      pickReturnModal = false;
+      return;
     }
-    if (cursorInfoEl) {
-      cursorInfoEl.classList.add("hidden");
-      cursorInfoEl.setAttribute("aria-hidden", "true");
+
+    // generic point pick target (modal or inline)
+    if (pickTarget) {
+      if (pickTarget.mode === "modal") {
+        const id = pickTarget.inputId;
+        const rx = Math.round(x);
+        const ry = Math.round(y);
+        if (id === "addX") {
+          if (addX) addX.value = rx;
+          if (addY) addY.value = ry;
+        } else if (id === "addX2") {
+          if (addX2) addX2.value = rx;
+          if (addY2) addY2.value = ry;
+        }
+        addLog(`已采样坐标 (${rx}, ${ry})`);
+        pickActive = false;
+        if (cursorInfoEl) {
+          cursorInfoEl.classList.add("hidden");
+          cursorInfoEl.setAttribute("aria-hidden", "true");
+        }
+        if (addModal && pickReturnModal) {
+          addModal.setAttribute("aria-hidden", "false");
+          setTimeout(updateAddModalFields, 0);
+        }
+        pickTarget = null;
+        pickReturnModal = false;
+        event.preventDefault();
+        return;
+      } else if (pickTarget.mode === "inline") {
+        const inputEl = pickTarget.input;
+        const idx = Number(inputEl.dataset.index);
+        const field = inputEl.dataset.field;
+        const rx = Math.round(x);
+        const ry = Math.round(y);
+        // try to set both coords on the event if possible
+        const evt = recordedEvents[idx];
+        if (evt) {
+          if (field === "x" || field === "y") {
+            evt.x = rx;
+            evt.y = ry;
+          } else if (field === "x1" || field === "y1") {
+            evt.x1 = rx;
+            evt.y1 = ry;
+          } else if (field === "x2" || field === "y2") {
+            evt.x2 = rx;
+            evt.y2 = ry;
+          }
+          renderEventList();
+          addLog(`已采样坐标并更新事件 ${idx} -> (${rx}, ${ry})`);
+        }
+        pickActive = false;
+        if (cursorInfoEl) {
+          cursorInfoEl.classList.add("hidden");
+          cursorInfoEl.setAttribute("aria-hidden", "true");
+        }
+        pickTarget = null;
+        pickReturnModal = false;
+        event.preventDefault();
+        return;
+      }
     }
-    event.preventDefault();
-    return;
   }
   event.preventDefault();
   screenEl.setPointerCapture(event.pointerId);

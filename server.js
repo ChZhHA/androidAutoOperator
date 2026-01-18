@@ -1,10 +1,25 @@
 const path = require("path");
+const fs = require("fs");
 const { execFile, spawn } = require("child_process");
 const express = require("express");
 const WebSocket = require("ws");
 const net = require("net");
 
-const ADB_PATH = process.env.ADB_PATH || "adb";
+// Prefer an `adb` binary shipped in the project `adb/` folder by default.
+// Allow override via environment variable `ADB_PATH`.
+const DEFAULT_ADB_NAME = process.platform === "win32" ? "adb.exe" : "adb";
+const ADB_PATH = process.env.ADB_PATH || path.resolve(__dirname, "adb", DEFAULT_ADB_NAME);
+
+// Try to ensure executable permission on non-Windows platforms.
+if (process.platform !== "win32") {
+    try {
+        fs.chmodSync(ADB_PATH, 0o755);
+    } catch (err) {
+        // ignore errors (file may not exist yet or permission change may fail)
+    }
+}
+
+console.log("ADB path:", ADB_PATH);
 const PORT = process.env.PORT || 3000;
 const CAPTURE_INTERVAL_MS = Number(process.env.CAPTURE_INTERVAL_MS || 1020);
 const DEVICE_ID = process.env.ADB_DEVICE || ""; // optional: set device serial

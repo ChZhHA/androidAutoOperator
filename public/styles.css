@@ -236,17 +236,36 @@ body {
 
 .event-value.editing {
   cursor: default;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .event-input-inline {
   width: 72px;
+  height: 28px;
   padding: 3px 6px;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: var(--panel-strong);
   color: var(--text);
   font-size: 11px;
+  box-sizing: border-box;
 }
+
+.inline-pick-btn {
+  margin-left: 6px;
+  padding: 4px 6px;
+  font-size: 11px;
+  height: 28px;
+  min-width: 36px;
+  border-radius: 6px;
+  background: var(--button);
+  border: 1px solid var(--border);
+  color: var(--text);
+  cursor: pointer;
+}
+ .event-item[draggable="true"] { cursor: grab; }
 
 .event-item[draggable="true"] { cursor: grab; }
 .event-item.dragging { opacity: 0.6; }
@@ -296,6 +315,9 @@ body {
 .cursor-info.hidden {
   display: none;
 }
+
+/* also hide by aria-hidden attribute when not active */
+.cursor-info[aria-hidden="true"] { display: none; }
 
 .event-main label,
 .event-meta label {
@@ -479,6 +501,9 @@ body {
 .modal-row { display:flex; gap:8px; flex-wrap:wrap; }
 .modal-actions { display:flex; gap:8px; justify-content:flex-end; }
 
+/* ensure modal-group children are vertically centered */
+.modal-row .modal-group { display:flex; align-items:flex-end; gap:8px; }
+
 /* Modal 表单样式：统一与界面控件一致 */
 .modal-content h3 {
   margin: 0;
@@ -509,6 +534,18 @@ body {
 .modal-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .modal-row .full-width { min-width: 220px; flex: 1 1 auto; }
 .modal-actions .btn { min-width: 84px; }
+
+/* modal 内的取点按钮，和 inline 风格一致但稍微高一点 */
+#addCoordPickBtn, #addCoordPickBtn2 {
+  padding: 6px 8px;
+  font-size: 12px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--button);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+#addCoordPickBtn:hover, #addCoordPickBtn2:hover { background: var(--button-hover); }
 
 /* 更紧凑的表单排列在小屏幕 */
 @media (max-width: 520px) {

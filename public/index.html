@@ -50,9 +50,7 @@
             <button id="stopScheduleBtn" class="btn" disabled>停止定时</button>
           </div>
         </div>
-      </div>
-      
-      <div class="hint">提示：若画面卡顿，可调大采集间隔。</div>
+      </div> 
     </aside>
     <main class="main">
       <canvas id="screen"></canvas>
@@ -91,12 +89,14 @@
             <div class="modal-group" data-for="tap,swipe,longpress">
               <label>X1 <input id="addX" type="number" value="0" /></label>
               <label>Y1 <input id="addY" type="number" value="0" /></label>
+              <button id="addCoordPickBtn" type="button" class="btn">取点</button>
             </div>
           </div>
           <div class="modal-row">
             <div class="modal-group" data-for="swipe">
               <label>X2 <input id="addX2" type="number" value="0" /></label>
               <label>Y2 <input id="addY2" type="number" value="0" /></label>
+              <button id="addCoordPickBtn2" type="button" class="btn">取点</button>
             </div>
           </div>
           <div class="modal-row">
