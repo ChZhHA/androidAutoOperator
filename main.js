@@ -6,7 +6,21 @@ let serverProc = null;
 
 function startServer() {
   return new Promise((resolve, reject) => {
-    // Spawn node to run server.js from project root
+    // When packaged, spawning the app executable with server.js will re-run
+    // the packaged binary and can cause a spawn loop. Instead require the
+    // server module directly in the main process for packaged builds.
+    if (app.isPackaged) {
+      try {
+        require(path.join(__dirname, 'server.js'));
+        resolve();
+      } catch (err) {
+        console.error('Failed to require server.js in packaged app:', err);
+        reject(err);
+      }
+      return;
+    }
+
+    // Spawn node/electron to run server.js from project root during development
     serverProc = spawn(process.execPath, [path.join(__dirname, 'server.js')], {
       env: process.env,
     });

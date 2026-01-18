@@ -8,18 +8,47 @@ const net = require("net");
 // Prefer an `adb` binary shipped in the project `adb/` folder by default.
 // Allow override via environment variable `ADB_PATH`.
 const DEFAULT_ADB_NAME = process.platform === "win32" ? "adb.exe" : "adb";
-const ADB_PATH = process.env.ADB_PATH || path.resolve(__dirname, "adb", DEFAULT_ADB_NAME);
 
-// Try to ensure executable permission on non-Windows platforms.
+function resolveAdbPath() {
+    // 1. env override
+    if (process.env.ADB_PATH) return process.env.ADB_PATH;
+
+    // 2. when packaged via electron-builder, extraResources are unpacked to process.resourcesPath
+    try {
+        const resBase = process.resourcesPath || __dirname;
+        const candidate = path.join(resBase, 'adb', DEFAULT_ADB_NAME);
+        if (fs.existsSync(candidate)) return candidate;
+    } catch (e) { }
+
+    // 3. fallback to project-relative adb (useful during development)
+    const fallback = path.resolve(__dirname, 'adb', DEFAULT_ADB_NAME);
+    return fallback;
+}
+
+let ADB_PATH = resolveAdbPath();
+
+// Try to ensure executable permission on non-Windows platforms, only if file exists.
 if (process.platform !== "win32") {
     try {
-        fs.chmodSync(ADB_PATH, 0o755);
+        if (fs.existsSync(ADB_PATH)) fs.chmodSync(ADB_PATH, 0o755);
     } catch (err) {
         // ignore errors (file may not exist yet or permission change may fail)
     }
 }
 
 console.log("ADB path:", ADB_PATH);
+// Resolve paths under packaged `minicap-build` (supports extraResources unpacked to process.resourcesPath)
+function resolveMinicapBuildPaths(ABI, SDK) {
+    const base = process.resourcesPath || __dirname;
+    const candidateMinicap = path.join(base, 'minicap-build', 'libs', ABI, 'minicap');
+    const candidateSo = path.join(base, 'minicap-build', 'jni', 'libs', `android-${SDK}`, ABI, 'minicap.so');
+    // fallback to project-relative (development)
+    const fallbackMinicap = path.resolve(__dirname, 'minicap_build', 'libs', ABI, 'minicap');
+    const fallbackSo = path.resolve(__dirname, 'minicap_build', 'jni', 'libs', `android-${SDK}`, ABI, 'minicap.so');
+    const minicapPath = fs.existsSync(candidateMinicap) ? candidateMinicap : fallbackMinicap;
+    const soPath = fs.existsSync(candidateSo) ? candidateSo : fallbackSo;
+    return { minicapPath, soPath };
+}
 const PORT = process.env.PORT || 3000;
 const CAPTURE_INTERVAL_MS = Number(process.env.CAPTURE_INTERVAL_MS || 1020);
 const DEVICE_ID = process.env.ADB_DEVICE || ""; // optional: set device serial
@@ -103,8 +132,7 @@ app.post('/install-minicap', async (req, res) => {
         messages.push(`Detected ABI: ${ABI}`);
         messages.push(`Detected SDK: ${SDK}`);
 
-        const localMinicap = path.resolve(__dirname, 'minicap_build', 'libs', ABI, 'minicap');
-        const localSo = path.resolve(__dirname, 'minicap_build', 'jni', 'libs', `android-${SDK}`, ABI, 'minicap.so');
+        const { minicapPath: localMinicap, soPath: localSo } = resolveMinicapBuildPaths(ABI, SDK);
 
         const fsExists = (p) => {
             try {
@@ -123,6 +151,12 @@ app.post('/install-minicap', async (req, res) => {
 
         // push minicap
         messages.push(`Pushing ${localMinicap} -> /data/local/tmp/`);
+        // ensure executable bit locally when available (non-win)
+        try {
+            if (process.platform !== 'win32' && fs.existsSync(localMinicap)) {
+                fs.chmodSync(localMinicap, 0o755);
+            }
+        } catch (e) { /* ignore */ }
         await runAdbCommandPromise(['push', localMinicap, '/data/local/tmp/']);
         messages.push('Pushed minicap binary');
 

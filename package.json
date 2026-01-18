@@ -34,6 +34,18 @@
     "mac": {
       "icon": "public/icon/adb.png"
     },
+    "extraResources": [
+      {
+        "from": "adb",
+        "to": "adb",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "minicap-build",
+        "to": "minicap-build",
+        "filter": ["**/*"]
+      }
+    ],
     "nsis": {
       "oneClick": false,
       "perMachine": false,
