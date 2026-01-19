@@ -56,6 +56,7 @@ const MINICAP_PATH = process.env.MINICAP_PATH || "/data/local/tmp/minicap";
 const MINICAP_QUALITY = Number(process.env.MINICAP_QUALITY || 60);
 const MINICAP_TIMEOUT_MS = Number(process.env.MINICAP_TIMEOUT_MS || 3000);
 const MINICAP_SOCKET_PORT = Number(process.env.MINICAP_SOCKET_PORT || 1717);
+const MINICAP_HOST = process.env.MINICAP_SOCKET_HOST || "127.0.0.1";
 
 function createBanner()
 {
@@ -416,7 +417,7 @@ async function startMinicapStream()
     console.log("starting minicap:", [ADB_PATH, ...adbArgs(shellCmd)].join(" "));
     minicapProc = spawn(ADB_PATH, adbArgs(shellCmd));
     await delay(500);
-    minicapSocket = net.connect({ port: MINICAP_SOCKET_PORT });
+    minicapSocket = net.connect({host:MINICAP_HOST, port: MINICAP_SOCKET_PORT });
     minicapSocket.on("readable", handleMinicapSocketReadable);
     minicapSocket.on("error", (err) =>
     {
@@ -434,67 +435,52 @@ async function startMinicapStream()
         clearTimeout(minicapRestartTimer);
         minicapRestartTimer = null;
     }
-    //   minicapProc.stderr.on("data", (chunk) => {
-    //     logProcessOutput("minicap stderr:", chunk);
-    //   });
-
-    //   minicapProc.on("close", (code) => {
-    //     minicapProc = null;
-    //     if (minicapSocket) {
-    //       minicapSocket.destroy();
-    //       minicapSocket = null;
-    //     }
-    //     resetMinicapState();
-    //     removeMinicapPortForward();
-    //     lastFrame = null;
-    //     if (code !== null && code !== 0) {
-    //       console.error("Minicap exited with code", code);
-    //     }
-    //   });
 }
 
-// function stopMinicapStream()
-// {
-//     if (minicapSocket)
-//     {
-//         minicapSocket.destroy();
-//         minicapSocket = null;
-//     }
-//     if (!minicapProc) return;
-//     minicapProc.kill();
-//     minicapProc = null;
-//     resetMinicapState();
-//     if (minicapRestartTimer)
-//     {
-//         clearTimeout(minicapRestartTimer);
-//         minicapRestartTimer = null;
-//     }
-// }
+function stopMinicapStream()
+{
+    // destroy socket
+    try {
+        if (minicapSocket) {
+            minicapSocket.removeAllListeners();
+            minicapSocket.destroy();
+            minicapSocket = null;
+        }
+    } catch (e) {
+        console.warn("Error destroying minicapSocket:", e && e.message || e);
+    }
 
-// setInterval(async () =>
-// {
-//     const clients = Array.from(wss.clients).filter((ws) => ws.readyState === WebSocket.OPEN);
-//     if (!minicapProc && !minicapStartedOnce && clients.length > 0)
-//     {
-//         try
-//         {
-//             await startMinicapStream();
-//         } catch (err)
-//         {
-//             console.error("Minicap start failed:", err.message || err);
-//             minicapFailures += 1;
-//         }
-//     }
+    // kill process
+    try {
+        if (minicapProc) {
+            minicapProc.removeAllListeners();
+            // best-effort kill
+            try { minicapProc.kill(); } catch (e) { /* ignore */ }
+            minicapProc = null;
+        }
+    } catch (e) {
+        console.warn("Error killing minicapProc:", e && e.message || e);
+    }
 
-//     if (minicapProc && minicapStartAt > 0)
-//     {
-//         const now = Date.now();
-//         if (!lastFrame && now - minicapStartAt > MINICAP_TIMEOUT_MS)
-//         {
-//             minicapFailures += 1;
-//         }
-//     }
-// }, CAPTURE_INTERVAL_MS);
+    // clear timers and state
+    try {
+        resetMinicapState();
+        lastFrame = null;
+        if (minicapRestartTimer) {
+            clearTimeout(minicapRestartTimer);
+            minicapRestartTimer = null;
+        }
+        // allow restart on future connections
+        minicapStartedOnce = false;
+    } catch (e) { /* ignore */ }
+
+    // remove adb port forward
+    try {
+        removeMinicapPortForward();
+    } catch (e) { /* ignore */ }
+
+    console.log("minicap stream stopped and cleaned up");
+}
 
 wss.on("connection", (ws) =>
 {
@@ -506,6 +492,7 @@ wss.on("connection", (ws) =>
             minicapFailures += 1;
         });
     }
+
     ws.on("message", (msg) =>
     {
         let data;
@@ -651,4 +638,32 @@ wss.on("connection", (ws) =>
             });
         }
     });
+
+    ws.on("close", () =>
+    {
+        try
+        {
+            const clients = Array.from(wss.clients).filter((c) => c.readyState === WebSocket.OPEN);
+            if (clients.length === 0)
+            {
+                // no active clients, stop minicap
+                stopMinicapStream();
+            }
+        } catch (e)
+        {
+            console.warn("Error handling ws close:", e && e.message || e);
+        }
+    });
+});
+
+wss.on("close", () =>
+{
+    try
+    {
+        stopMinicapStream();
+    }
+    catch (e)
+    {
+        console.warn("Error handling wss close:", e && e.message || e);
+    }
 });

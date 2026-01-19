@@ -1,56 +1,64 @@
 {
-  "name": "android-auto-operator",
-  "version": "1.0.0",
-  "description": "ADB screen viewer with remote tap",
-  "main": "main.js",
-  "type": "commonjs",
-  "scripts": {
-    "start": "electron .",
-    "serve": "node server.js",
-    "electron:dev": "electron .",
-    "dist": "electron-builder"
-  },
-  "dependencies": {
-    "express": "^4.19.2",
-    "ws": "^8.18.0"
-  }
-  ,"devDependencies": {
-    "electron": "^25.0.0",
-    "electron-builder": "^24.0.0"
-  },
-  "build": {
-    "appId": "com.example.androidautooperator",
-    "files": [
-      "**/*"
-    ],
-    "asar": true,
-    "win": {
-      "target": ["portable"],
-      "icon": "public/icon/adb.png"
+    "name": "android-auto-operator",
+    "version": "1.0.1",
+    "author": "chzh314@hotmail.com",
+    "description": "ADB screen viewer with remote tap",
+    "main": "main.js",
+    "type": "commonjs",
+    "scripts": {
+        "start": "electron .",
+        "serve": "node server.js",
+        "electron:dev": "electron .",
+        "dist": "electron-builder"
     },
-    "linux": {
-      "icon": "public/icon/adb.png"
+    "dependencies": {
+        "express": "^4.19.2",
+        "ws": "^8.18.0"
     },
-    "mac": {
-      "icon": "public/icon/adb.png"
+    "devDependencies": {
+        "electron": "^25.0.0",
+        "electron-builder": "^24.0.0"
     },
-    "extraResources": [
-      {
-        "from": "adb",
-        "to": "adb",
-        "filter": ["**/*"]
-      },
-      {
-        "from": "minicap-build",
-        "to": "minicap-build",
-        "filter": ["**/*"]
-      }
-    ],
-    "nsis": {
-      "oneClick": false,
-      "perMachine": false,
-      "allowElevation": true,
-      "allowToChangeInstallationDirectory": true
+    "build": {
+        "appId": "com.example.androidautooperator",
+        "files": [
+            "**/*"
+        ],
+        "asar": false,
+        "npmRebuild": true,
+        "win": {
+            "target": [
+                "portable"
+            ],
+            "icon": "public/icon/adb.png"
+        },
+        "linux": {
+            "icon": "public/icon/adb.png"
+        },
+        "mac": {
+            "icon": "public/icon/adb.png"
+        },
+        "extraResources": [
+            {
+                "from": "adb",
+                "to": "adb",
+                "filter": [
+                    "**/*"
+                ]
+            },
+            {
+                "from": "minicap_build",
+                "to": "minicap_build",
+                "filter": [
+                    "**/*"
+                ]
+            }
+        ],
+        "nsis": {
+            "oneClick": false,
+            "perMachine": false,
+            "allowElevation": true,
+            "allowToChangeInstallationDirectory": true
+        }
     }
-  }
 }
