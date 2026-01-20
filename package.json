@@ -1,6 +1,6 @@
 {
     "name": "android-auto-operator",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "author": "chzh314@hotmail.com",
     "description": "ADB screen viewer with remote tap",
     "main": "main.js",
