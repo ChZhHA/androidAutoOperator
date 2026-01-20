@@ -54,9 +54,10 @@ const CAPTURE_INTERVAL_MS = Number(process.env.CAPTURE_INTERVAL_MS || 1020);
 const DEVICE_ID = process.env.ADB_DEVICE || ""; // optional: set device serial
 const MINICAP_PATH = process.env.MINICAP_PATH || "/data/local/tmp/minicap";
 const MINICAP_QUALITY = Number(process.env.MINICAP_QUALITY || 60);
-const MINICAP_TIMEOUT_MS = Number(process.env.MINICAP_TIMEOUT_MS || 3000);
 const MINICAP_SOCKET_PORT = Number(process.env.MINICAP_SOCKET_PORT || 1717);
 const MINICAP_HOST = process.env.MINICAP_SOCKET_HOST || "127.0.0.1";
+const MESSAGE_TARGETS = ["windows"];
+const DEFAULT_MESSAGE_TARGET = "windows";
 
 function createBanner()
 {
@@ -683,6 +684,14 @@ function sanitizeTimeline(entries)
             sanitized.push({ type, delay, key: rawEntry.key });
             continue;
         }
+        if (type === "message")
+        {
+            const channel = String(rawEntry.channel || "");
+            const payload = typeof rawEntry.payload === "string" ? rawEntry.payload : String(rawEntry.payload || "");
+            const target = MESSAGE_TARGETS.includes(rawEntry.target) ? rawEntry.target : DEFAULT_MESSAGE_TARGET;
+            sanitized.push({ type, delay, channel, payload, target });
+            continue;
+        }
         if (type === "power")
         {
             sanitized.push({ type, delay, long: !!rawEntry.long, duration: Number(rawEntry.duration || 0) });
@@ -843,10 +852,9 @@ function broadcastFrame(frame)
 function handleMinicapSocketReadable()
 {
     if (!minicapSocket) return;
-    console.log("read");
     for (let chunk; (chunk = minicapSocket.read());)
     {
-        console.info('chunk(length=%d)', chunk.length);
+        // console.info('chunk(length=%d)', chunk.length);
 
         for (let cursor = 0, len = chunk.length; cursor < len;)
         {
@@ -928,7 +936,7 @@ function handleMinicapSocketReadable()
                 lastFrame = minicapFrameBody;
                 lastFrameSeq += 1;
                 lastFrameAt = Date.now();
-                console.log("minicap frame", lastFrameSeq, "bytes", lastFrame.length);
+                // console.log("minicap frame", lastFrameSeq, "bytes", lastFrame.length);
                 broadcastFrame(minicapFrameBody);
 
                 cursor += minicapFrameBodyLength;

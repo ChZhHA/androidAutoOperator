@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu, ipcMain, Notification } = require('electron');
 const path = require('path');
 const { spawn } = require('child_process');
 
@@ -55,6 +55,36 @@ function startServer() {
     setTimeout(tryResolve, 3000);
   });
 }
+
+function stringifyNotificationBody(value) {
+  if (typeof value === 'string') return value;
+  if (value === undefined || value === null) return '';
+  try {
+    return JSON.stringify(value);
+  } catch (err) {
+    return String(value);
+  }
+}
+
+function showWindowsNotification(message) {
+  const supports = Notification && typeof Notification.isSupported === 'function' ? Notification.isSupported() : true;
+  if (!supports) {
+    console.warn('Desktop notifications are not supported on this platform.');
+    return;
+  }
+  const channel = message && message.channel ? String(message.channel).trim() : '';
+  const body = stringifyNotificationBody(message && message.payload);
+  const title = channel ? `Message: ${channel}` : 'Android Auto Operator';
+  new Notification({ title, body: body || ' ' }).show();
+}
+
+ipcMain.on('androidAutoOperator:message', (event, payload) => {
+  console.log('[ipc] message received from renderer:', payload);
+  const target = payload && payload.target;
+  if (target === 'windows' || target === 'both') {
+    showWindowsNotification(payload);
+  }
+});
 
 function createWindow() {
   const win = new BrowserWindow({

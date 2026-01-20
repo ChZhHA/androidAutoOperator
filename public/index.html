@@ -61,6 +61,10 @@
                             style="width:80px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--panel-strong);color:var(--text);" />
                         <button id="powerBtn" class="btn" data-i18n-key="btn.power">电源键</button>
                     </label>
+                    <div class="device-nav-buttons">
+                        <button id="homeBtn" class="btn" data-i18n-key="btn.home">主页键</button>
+                        <button id="backBtn" class="btn" data-i18n-key="btn.back">返回键</button>
+                    </div>
                     <div style="display:flex;gap:8px;margin-top:8px;align-items:center;" class="inline-input-row">
                         <input id="sendTextInput" type="text" data-i18n-key="placeholder.sendText" placeholder="输入文本并发送"
                             style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--panel-strong);color:var(--text);" />
@@ -103,6 +107,10 @@
         </div>
     </aside>
     <main class="main">
+        <div class="screen-controls" aria-label="屏幕控制">
+            <button id="screenPauseBtn" class="btn" data-i18n-key="btn.screen.pause">暂停画面</button>
+            <button id="screenResumeBtn" class="btn" data-i18n-key="btn.screen.resume" disabled>恢复画面</button>
+        </div>
         <canvas id="screen"></canvas>
         <div id="cursorInfo" class="cursor-info" aria-hidden="true"></div>
     </main>
@@ -132,6 +140,7 @@
                             <option value="label" data-i18n-key="opt.label">标签</option>
                             <option value="goto" data-i18n-key="opt.goto">Goto</option>
                             <option value="wait" data-i18n-key="opt.wait">延时 (Wait)</option>
+                                <option value="message" data-i18n-key="opt.message">发送消息</option>
                         </select>
                     </label>
                 </div>
@@ -170,6 +179,21 @@
                     <div class="modal-group" data-for="wait">
                         <label><span data-i18n-key="field.wait_duration">时长(s)</span> <input id="addWaitDuration"
                                 type="number" step="0.1" value="1.0" /></label>
+                    </div>
+                </div>
+                <div class="modal-row">
+                    <div class="modal-group" data-for="message">
+                        <label><span data-i18n-key="field.messageChannel">消息频道</span>
+                            <input id="addMessageChannel" type="text" value="" />
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-row">
+                    <div class="modal-group" data-for="message" style="width:100%">
+                        <label style="flex:1;">
+                            <span data-i18n-key="field.messagePayload">消息内容</span>
+                            <textarea id="addMessagePayload" rows="3"></textarea>
+                        </label>
                     </div>
                 </div>
                 <div class="modal-row">

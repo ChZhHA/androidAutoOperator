@@ -7,6 +7,7 @@
   --text: #e5e7eb;
   --muted: rgba(226, 232, 240, 0.72);
   --hairline: rgba(255, 255, 255, 0.06);
+  --handler: rgba(255, 255, 255, 0.37);
   --border: rgba(148, 163, 184, 0.18);
   --border-strong: rgba(148, 163, 184, 0.28);
   --accent: #61afef;
@@ -25,6 +26,7 @@
   --text: #111827;
   --muted: rgba(55, 65, 81, 0.72);
   --hairline: rgba(17, 24, 39, 0.08);
+  --handler: rgba(155, 155, 155, 0.37);
   --border: rgba(148, 163, 184, 0.35);
   --border-strong: rgba(148, 163, 184, 0.5);
   --accent: #2563eb;
@@ -47,6 +49,7 @@ body {
 .sidebar {
   width: 300px;
   padding: 16px;
+  padding-right: 8px;
   background: var(--panel);
   border-right: 1px solid var(--hairline);
   box-shadow: none;
@@ -136,13 +139,15 @@ body {
 .sidebar .panel-shell {
   padding: 0;
   display: flex;
+  padding-right: 2px;
+
   flex-direction: column;
   gap: 0;
   background: var(--panel-strong);
   border: 1px solid var(--hairline);
   border-radius: 10px;
   box-shadow: none;
-  min-height: 140px;
+  min-height: 80px;
   overflow: hidden;
 }
 
@@ -190,6 +195,7 @@ body {
 
 .panel-body {
   padding: 12px;
+  padding-right: 4px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -203,6 +209,7 @@ body {
   height: 12px;
   border-top: 1px solid var(--hairline);
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   cursor: ns-resize;
@@ -214,7 +221,7 @@ body {
   width: 42px;
   height: 1px;
   border-radius: 999px;
-  background: var(--hairline);
+  background: var(--handler);
 }
 
 .panel-shell.is-collapsed {
@@ -246,6 +253,12 @@ body {
 .controls {
   display: grid;
   gap: 8px;
+}
+
+.device-nav-buttons {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
 }
 
 .btn {
@@ -382,6 +395,15 @@ body {
   font-size: 11px;
 }
 
+.event-label-name {
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: none;
+  border: 0;
+  background: none;
+  padding: 0;
+}
+
 .event-value:hover {
   border-color: var(--border-strong);
   background: rgba(255, 255, 255, 0.04);
@@ -429,8 +451,9 @@ body {
 /* 删除圆点 */
 .evt-del {
   position: absolute;
-  right: 8px;
-  top: 8px;
+  right: 0px;
+  top: 0px;
+  transform: translate(50%, -50%);
   width: 22px;
   height: 22px;
   border-radius: 999px;
@@ -503,6 +526,22 @@ body {
   justify-content: center;
   padding: 20px;
   min-width: 0;
+  position: relative;
+}
+
+.screen-controls {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 20;
+}
+.screen-controls .btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  height: 32px;
 }
 
 .rightbar {
@@ -683,6 +722,17 @@ body {
   font-size: 13px;
   box-sizing: border-box;
 }
+.modal-row textarea {
+  min-height: 70px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--hairline);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 13px;
+  box-sizing: border-box;
+  resize: vertical;
+}
 .modal-row input[type="number"]::-webkit-outer-spin-button,
 .modal-row input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .modal-row .full-width { min-width: 220px; flex: 1 1 auto; }
@@ -745,7 +795,29 @@ body {
   scrollbar-color: rgba(148,163,184,0.24) transparent;
 }
 
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
 
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148,163,184,0.18);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148,163,184,0.32);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
 
 /* Log entry styling */
 #logList { display:flex; flex-direction:column; gap:6px; }

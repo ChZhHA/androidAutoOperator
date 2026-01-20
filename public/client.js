@@ -10,6 +10,8 @@ const installMinicapBtn = document.getElementById("installMinicapBtn");
 const powerBtn = document.getElementById("powerBtn");
 const powerModeSelect = document.getElementById('powerModeSelect');
 const powerDuration = document.getElementById('powerDuration');
+const homeBtn = document.getElementById('homeBtn');
+const backBtn = document.getElementById('backBtn');
 const sendTextInput = document.getElementById('sendTextInput');
 const sendTextBtn = document.getElementById('sendTextBtn');
 const addTextEventBtn = document.getElementById('addTextEventBtn');
@@ -35,6 +37,8 @@ const addDuration = document.getElementById("addDuration");
 const addWaitDuration = document.getElementById("addWaitDuration");
 const addLabelName = document.getElementById("addLabelName");
 const addEventBtn = document.getElementById("addEventBtn");
+const addMessageChannel = document.getElementById("addMessageChannel");
+const addMessagePayload = document.getElementById("addMessagePayload");
 // removed top-level goto input/button (now handled in modal)
 const addCondType = document.getElementById("addCondType");
 const addCondTimes = document.getElementById("addCondTimes");
@@ -44,6 +48,8 @@ const addCondPickBtn = document.getElementById("addCondPickBtn");
 const addCondTol = document.getElementById("addCondTol");
 const addCondRadius = document.getElementById("addCondRadius");
 const editIndexEl = document.getElementById("editIndex");
+const screenPauseBtn = document.getElementById("screenPauseBtn");
+const screenResumeBtn = document.getElementById("screenResumeBtn");
 let pickActive = false;
 let addCondSampleX = null;
 let addCondSampleY = null;
@@ -55,6 +61,16 @@ const cursorInfoEl = document.getElementById("cursorInfo");
 
 const DEFAULT_INTERVAL = 500; // ms 用于新添加/goto事件的默认间隔
 const LONGPRESS_THRESHOLD = 600; // ms 长按判断阈值
+const MESSAGE_TARGET = "windows";
+
+function normalizeMessageTarget(target) {
+  const value = String(target || "").trim();
+  return MESSAGE_TARGET;
+}
+
+function getMessageTargetLabel() {
+  return t('opt.messageTarget.windows');
+}
 const openAddModalBtn = document.getElementById("openAddModalBtn");
 const closeAddModalBtn = document.getElementById("closeAddModalBtn");
 const addModal = document.getElementById("addModal");
@@ -71,6 +87,7 @@ let isPlaying = false;
 let scheduleActive = false;
 let logs = [];
 let pendingGotoLabel = null;
+let screenPaused = false;
 
 const wsProtocol = location.protocol === "https:" ? "wss" : "ws";
 const ws = new WebSocket(`${wsProtocol}://${location.host}`);
@@ -165,6 +182,13 @@ function sendKey(keyInfo = {}, meta = {}) {
   } catch (e) {}
 }
 
+function sendNavigationKey(keyName) {
+  if (pickActive) return;
+  appendLogLine(t('log.key.sent', { key: keyName }), 'power');
+  recordEvent({ type: 'key', key: keyName });
+  sendKey({ key: keyName });
+}
+
 if (powerBtn) {
   powerBtn.addEventListener('click', () => {
     powerBtn.disabled = true;
@@ -180,6 +204,18 @@ if (powerBtn) {
         try { sendPower({ long: false }); } catch (e) { appendLogLine(t('log.send_failed', { err: e && e.message ? e.message : e }), 'power'); }
       }
     setTimeout(() => { powerBtn.disabled = false; }, 500);
+  });
+}
+
+if (homeBtn) {
+  homeBtn.addEventListener('click', () => {
+    sendNavigationKey('Home');
+  });
+}
+
+if (backBtn) {
+  backBtn.addEventListener('click', () => {
+    sendNavigationKey('Back');
   });
 }
 
@@ -222,11 +258,11 @@ window.addEventListener('keydown', (ev) => {
   if (key.length === 1) {
     recordEvent({ type: 'input', text: key });
     sendText(key);
-    appendLogLine(`Send char: ${key}`, 'power');
+    appendLogLine(t('log.input.sent', { text: key }), 'install');
   } else {
     recordEvent({ type: 'key', key });
     sendKey({ key });
-    appendLogLine(`Send key: ${key}`, 'power');
+    appendLogLine(t('log.key.sent', { key }), 'power');
   }
 });
 
@@ -247,6 +283,8 @@ const I18N = {
     "btn.save": "保存 JSON",
     "btn.load": "读取 JSON",
     "btn.addOperation": "添加操作",
+    "btn.home": "主页键",
+    "btn.back": "返回键",
     "card.events": "操作列表",
     "card.logs": "执行日志",
     "card.theme": "主题",
@@ -286,6 +324,8 @@ const I18N = {
     "evt.wait": "等待",
     "field.x": "X",
     "field.y": "Y",
+    "field.messageChannel": "消息频道",
+    "field.messagePayload": "消息内容",
     "opt.tap": "点击",
     "opt.swipe": "滑动",
     "opt.longpress": "长按",
@@ -294,6 +334,12 @@ const I18N = {
     "opt.wait": "等待",
     "opt.input": "输入",
     "opt.key": "按键",
+    "opt.message": "发送消息",
+    "label.messageTarget": "目标",
+    "opt.messageTarget.browser": "浏览器",
+    "opt.messageTarget.electron": "Electron",
+    "opt.messageTarget.both": "全部",
+    "opt.messageTarget.windows": "Windows 通知",
     "field.x1": "X1",
     "field.y1": "Y1",
     "field.x2": "X2",
@@ -321,9 +367,12 @@ const I18N = {
     "log.update.longpress": "更新 LONGPRESS ({x}, {y}) {duration}ms",
     "log.add.wait": "添加 WAIT {dur}ms",
     "log.update.wait": "更新 WAIT {dur}ms",
+    "log.add.message": "添加 消息 {channel} → {target}",
+    "log.update.message": "更新 消息 {channel} → {target}",
     "log.playEvent.tap": "回放 TAP ({x}, {y})",
     "log.playEvent.swipe": "回放 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
     "log.playEvent.longpress": "回放 LONGPRESS ({x}, {y}) {duration}ms",
+    "log.playMessage": "回放 消息 {channel} ({target}) 内容：{payload}",
     "log.gotoEncounter": "遇到 GOTO {name}",
     "log.gotoColorCond": "GOTO {name} 条件 color: 采样 {sampled} 距离 {dist}",
     "log.gotoColorNotMet": "GOTO {name} 条件 color 未满足，跳过",
@@ -346,8 +395,11 @@ const I18N = {
     "log.power.sent.long": "发送 电源键（长按 {dur}ms） 到设备",
     "log.power.play.short": "Play: 电源键（短按）",
     "log.power.play.long": "Play: 电源键（长按 {dur}ms)",
+    "log.key.sent": "发送按键：{key}",
     "log.send_failed": "发送失败: {err}",
     "btn.refresh": "刷新",
+    "btn.screen.pause": "暂停画面",
+    "btn.screen.resume": "恢复画面",
     "btn.sendText": "发送文本",
     "btn.addTextEvent": "添加为输入事件",
     "placeholder.sendText": "输入文本并发送",
@@ -367,6 +419,7 @@ const I18N = {
     "label.radius": "采样半径",
     "label.sampleCoords": "采样坐标",
     "hint.sampleNote": "提示：可手动填写或使用“取色”在画面上点击采样。",
+    "hint.messagePayload": "可填任意文本或 JSON。空内容也会被发送。",
     "hint.panel.resize": "拖拽调整高度",
     "hint.log.resize": "拖拽调整宽度",
   },
@@ -385,6 +438,8 @@ const I18N = {
     "btn.save": "Save JSON",
     "btn.load": "Load JSON",
     "btn.addOperation": "Add Action",
+    "btn.home": "Home",
+    "btn.back": "Back",
     "card.events": "Actions",
     "card.logs": "Logs",
     "card.theme": "Theme",
@@ -429,6 +484,7 @@ const I18N = {
     "label.radius": "Radius",
     "label.sampleCoords": "Sample Coordinates",
     "hint.sampleNote": "Hint: fill manually or use 'Pick' to sample on screen.",
+    "hint.messagePayload": "Any text or JSON; empty strings are allowed.",
     "hint.panel.resize": "Drag to resize height",
     "hint.log.resize": "Drag to resize width",
     "btn.delete": "Delete",
@@ -448,6 +504,8 @@ const I18N = {
     "evt.wait": "Wait",
     "field.x": "X",
     "field.y": "Y",
+    "field.messageChannel": "Channel",
+    "field.messagePayload": "Payload",
     "field.x1": "X1",
     "field.y1": "Y1",
     "field.x2": "X2",
@@ -472,9 +530,12 @@ const I18N = {
     "log.update.longpress": "Updated LONGPRESS ({x}, {y}) {duration}ms",
     "log.add.wait": "Added WAIT {dur}ms",
     "log.update.wait": "Updated WAIT {dur}ms",
+    "log.add.message": "Added message {channel} → {target}",
+    "log.update.message": "Updated message {channel} → {target}",
     "log.playEvent.tap": "Play TAP ({x}, {y})",
     "log.playEvent.swipe": "Play SWIPE ({x1}, {y1}) → ({x2}, {y2})",
     "log.playEvent.longpress": "Play LONGPRESS ({x}, {y}) {duration}ms",
+    "log.playMessage": "Play message {channel} ({target}): {payload}",
     "log.gotoEncounter": "Encounter GOTO {name}",
     "log.gotoColorCond": "GOTO {name} color cond: sampled {sampled} dist {dist}",
     "log.gotoColorNotMet": "GOTO {name} color cond not met, skip",
@@ -490,9 +551,16 @@ const I18N = {
     "log.exec.longpress": "Play LONGPRESS ({x}, {y}) {duration}ms",
     "opt.input": "Input",
     "opt.key": "Key",
+    "opt.message": "Send Message",
+    "label.messageTarget": "Target",
+    "opt.messageTarget.browser": "Browser",
+    "opt.messageTarget.electron": "Electron",
+    "opt.messageTarget.both": "All",
+    "opt.messageTarget.windows": "Windows Notification",
     "log.input.sent": "Sent text: {text}",
     "log.playInput": "Play text: {text}",
     "log.playKey": "Play key: {key}",
+    "log.key.sent": "Sent key: {key}",
     "btn.power": "Power",
     "opt.power.short": "Short",
     "opt.power.long": "Long",
@@ -504,6 +572,8 @@ const I18N = {
     "log.power.play.long": "Play: power (long {dur}ms)",
     "log.send_failed": "Send failed: {err}",
     "btn.refresh": "Refresh",
+    "btn.screen.pause": "Pause Screen",
+    "btn.screen.resume": "Resume Screen",
     "btn.sendText": "Send Text",
     "btn.addTextEvent": "Add as Input Event",
     "placeholder.sendText": "Type text to send",
@@ -523,6 +593,8 @@ const I18N = {
     "btn.save": "JSON を保存",
     "btn.load": "JSON を読み込む",
     "btn.addOperation": "操作を追加",
+    "btn.home": "ホーム鍵",
+    "btn.back": "戻る鍵",
     "card.events": "操作リスト",
     "card.logs": "実行ログ",
     "card.theme": "テーマ",
@@ -567,6 +639,7 @@ const I18N = {
     "label.radius": "サンプリング半径",
     "label.sampleCoords": "サンプリング座標",
     "hint.sampleNote": "ヒント: 手動で入力するか、画面上の「取得」でサンプリングしてください。",
+    "hint.messagePayload": "任意のテキストや JSON を指定できます。空文字列も送信されます。",
     "hint.panel.resize": "ドラッグで高さを調整",
     "hint.log.resize": "ドラッグで幅を調整",
     "btn.delete": "削除",
@@ -610,9 +683,12 @@ const I18N = {
     "log.update.longpress": "更新 LONGPRESS ({x}, {y}) {duration}ms",
     "log.add.wait": "追加 WAIT {dur}ms",
     "log.update.wait": "更新 WAIT {dur}ms",
+    "log.add.message": "メッセージ {channel} → {target} を追加",
+    "log.update.message": "メッセージ {channel} → {target} を更新",
     "log.playEvent.tap": "再生 TAP ({x}, {y})",
     "log.playEvent.swipe": "再生 SWIPE ({x1}, {y1}) → ({x2}, {y2})",
     "log.playEvent.longpress": "再生 LONGPRESS ({x}, {y}) {duration}ms",
+    "log.playMessage": "再生: メッセージ {channel} ({target}) 内容：{payload}",
     "log.gotoEncounter": "GOTO に到達 {name}",
     "log.gotoColorCond": "GOTO {name} 条件 color: サンプル {sampled} 距離 {dist}",
     "log.gotoColorNotMet": "GOTO {name} 条件 color 未達、スキップ",
@@ -628,9 +704,16 @@ const I18N = {
     "log.exec.longpress": "実行 LONGPRESS ({x}, {y}) {duration}ms",
     "opt.input": "入力",
     "opt.key": "キー",
+    "opt.message": "メッセージ送信",
+    "label.messageTarget": "ターゲット",
+    "opt.messageTarget.browser": "ブラウザ",
+    "opt.messageTarget.electron": "Electron",
+    "opt.messageTarget.both": "両方",
+    "opt.messageTarget.windows": "Windows 通知",
     "log.input.sent": "テキスト送信：{text}",
     "log.playInput": "再生テキスト：{text}",
     "log.playKey": "再生キー：{key}",
+    "log.key.sent": "キー送信：{key}",
     "btn.power": "電源鍵",
     "opt.power.short": "短押し",
     "opt.power.long": "長押し",
@@ -642,6 +725,8 @@ const I18N = {
     "log.power.play.long": "再生: 電源（長押し {dur}ms)",
     "log.send_failed": "送信失敗: {err}",
     "btn.refresh": "リフレッシュ",
+    "btn.screen.pause": "画面を一時停止",
+    "btn.screen.resume": "画面を再開",
     "btn.sendText": "テキスト送信",
     "btn.addTextEvent": "入力イベントに追加",
     "placeholder.sendText": "送信するテキストを入力",
@@ -711,6 +796,7 @@ function setLang(l) {
   LANG = l;
   applyI18n();
   updateDynamicTexts();
+  renderEventList();
   const sel = document.getElementById('langSelect');
   if (sel) sel.value = l;
 }
@@ -751,13 +837,16 @@ ws.addEventListener("message", (event) => {
     return;
   }
   const payload = event.data;
+  if (screenPaused) return;
   const blob = payload instanceof Blob ? payload : new Blob([payload], { type: "image/jpeg" });
   const url = URL.createObjectURL(blob);
   const img = new Image();
   img.onload = () => {
     screenEl.width = img.width;
     screenEl.height = img.height;
-    screenCtx.drawImage(img, 0, 0);
+    if (!screenPaused) {
+      screenCtx.drawImage(img, 0, 0);
+    }
     img.onload = null;
     img.src = BLANK_IMG;
     if (lastObjectUrl) {
@@ -813,8 +902,42 @@ function logPlaybackAction(action) {
     case 'key':
       addLog(t('log.playKey', { key: String(action.key || '') }));
       break;
+    case 'message':
+      addLog(t('log.playMessage', {
+        channel: String(action.channel || ''),
+        payload: String(action.payload || ''),
+        target: getMessageTargetLabel(),
+      }));
+      emitPlaybackMessage(action);
+      break;
     default:
       break;
+  }
+}
+
+function emitPlaybackMessage(action) {
+  if (!action || action.type !== 'message') return;
+  const channel = String(action.channel || '').trim();
+  const payload = typeof action.payload === 'string' ? action.payload : String(action.payload ?? '');
+  const target = normalizeMessageTarget(action.target);
+  const messageData = {
+    source: 'androidAutoOperator',
+    channel,
+    payload,
+    target,
+  };
+  if (target === 'browser' || target === 'both') {
+    window.postMessage(messageData, '*');
+  }
+  if (window.electron && typeof window.electron.sendMessage === 'function') {
+    const sendsToElectron = target === 'electron' || target === 'both' || target === 'windows';
+    if (sendsToElectron) {
+      try {
+        window.electron.sendMessage(channel, payload, target);
+      } catch (err) {
+        console.warn('Electron message delivery failed:', err);
+      }
+    }
   }
 }
 
@@ -1017,6 +1140,15 @@ function createPlaybackTimeline(events, options = {}) {
         case 'key':
           timeline.push({ delay, type: 'key', key: String(evt.key || '') });
           break;
+        case 'message':
+          timeline.push({
+            delay,
+            type: 'message',
+            channel: String(evt.channel || ''),
+            payload: String(evt.payload || ''),
+            target: normalizeMessageTarget(evt.target),
+          });
+          break;
         case 'goto':
           if (!evt.name) break;
           if (options.logGoto !== false) addLog(t('log.gotoEncounter', { name: evt.name }));
@@ -1083,6 +1215,38 @@ function formatSeconds(ms) {
   return s.toFixed(2);
 }
 
+const TAG_COLOR_PALETTE = [
+  '#9c6ef8',
+  '#61afef',
+  '#e5c07b',
+  '#98c379',
+  '#56b6c2',
+  '#d19a66',
+  '#c678dd',
+  '#7fdbca',
+];
+
+function escapeHtml(raw) {
+  if (raw === null || raw === undefined) return '';
+  return String(raw)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function getTagColor(value) {
+  const text = String(value || '').trim().toLowerCase();
+  if (!text) return 'var(--muted)';
+  let hash = 0;
+  for (let i = 0; i < text.length; i += 1) {
+    hash = (hash << 5) - hash + text.charCodeAt(i);
+    hash |= 0;
+  }
+  const idx = Math.abs(hash) % TAG_COLOR_PALETTE.length;
+  return TAG_COLOR_PALETTE[idx];
+}
+
 function getEventIntervals(events) {
   return events.map((e) => Math.max(0, Number(e.t || 0)));
 }
@@ -1136,11 +1300,14 @@ function renderEventList() {
         </li>`;
       }
       if (evt.type === "label") {
+        const safeName = escapeHtml(evt.name);
+        const nameColor = getTagColor(safeName);
+        const nameText = safeName || t('label.labelName');
         return `<li class="event-item" draggable="true" data-index="${index}">
           ${deleteHtml}
           <div class="event-main">
             <span class="tag">${t('evt.label')}</span>
-            <span class="event-value" data-index="${index}" data-field="name">${(evt.name || "").toString().replace(/</g, "&lt;")}</span>
+            <span class="event-value event-label-name" data-index="${index}" data-field="name" style="color:${nameColor};">${nameText}</span>
           </div>
           <div class="event-meta">
             <span class="event-label">${t('field.interval')}</span>
@@ -1157,11 +1324,14 @@ function renderEventList() {
             condDesc = t('cond.colorDesc', { color: String(evt.cond.color || ""), tol: Number(evt.cond.tol || 0), radius: Number(evt.cond.radius || 0), coords: cx });
           }
         }
+        const safeName = escapeHtml(evt.name);
+        const nameColor = getTagColor(safeName);
+        const nameText = safeName || t('label.labelName');
         return `<li class="event-item" draggable="true" data-index="${index}">
           ${deleteHtml}
           <div class="event-main">
             <span class="tag">${t('evt.goto')}</span>
-            <span class="event-value" data-index="${index}" data-field="name">${(evt.name || "").toString().replace(/</g, "&lt;")}</span>
+            <span class="event-value event-label-name" data-index="${index}" data-field="name" style="color:${nameColor};">${nameText}</span>
             <span class="cond-desc">${condDesc}</span>
           </div>
           <div class="event-meta">
@@ -1216,6 +1386,23 @@ function renderEventList() {
               <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
             </div>
           </li>`;
+      }
+      if (evt.type === "message") {
+        const channelText = escapeHtml(String(evt.channel || '')) || t('label.messageChannel');
+        const payloadText = escapeHtml(String(evt.payload || ''));
+        return `<li class="event-item" draggable="true" data-index="${index}">
+          ${deleteHtml}
+          <div class="event-main">
+            <span class="tag">${t('opt.message')}</span>
+            <span class="event-label">${t('field.messageChannel')}</span>
+            <span class="event-value">${channelText}</span>
+            ${payloadText ? `<span class="event-label">${t('field.messagePayload')}</span><span class="event-value message-payload">${payloadText}</span>` : ''}
+          </div>
+          <div class="event-meta">
+            <span class="event-label">${t('field.interval')}</span>
+            <span class="event-value" data-index="${index}" data-field="interval" data-unit="s" data-step="0.01">${formatSeconds(intervals[index])}</span>
+          </div>
+        </li>`;
       }
       if (evt.type === 'input') {
         return `<li class="event-item" draggable="true" data-index="${index}">
@@ -1431,6 +1618,20 @@ function addCustomEvent() {
       addLog(t('log.add.wait', { dur }));
     }
   }
+  else if (type === "message") {
+    const channel = String(addMessageChannel && addMessageChannel.value ? addMessageChannel.value : "").trim();
+    const payload = String(addMessagePayload && addMessagePayload.value ? addMessagePayload.value : "");
+    const target = MESSAGE_TARGET;
+    const eventChannelLabel = channel || t('label.messageChannel');
+    const targetLabel = getMessageTargetLabel();
+    if (editIndex >= 0 && recordedEvents[editIndex]) {
+      recordedEvents[editIndex] = { ...recordedEvents[editIndex], type: "message", channel, payload, target, t: recordedEvents[editIndex].t || defaultInterval };
+      addLog(t('log.update.message', { channel: eventChannelLabel, target: targetLabel }));
+    } else {
+      recordedEvents.push({ type: "message", channel, payload, target, t: defaultInterval });
+      addLog(t('log.add.message', { channel: eventChannelLabel, target: targetLabel }));
+    }
+  }
   renderEventList();
   if (addModal) {
     addModal.setAttribute("aria-hidden", "true");
@@ -1457,6 +1658,8 @@ function closeAddModal() {
   addCondSampleX = null;
   addCondSampleY = null;
   if (addCondPickBtn) addCondPickBtn.classList.remove("active");
+  if (addMessageChannel) addMessageChannel.value = "";
+  if (addMessagePayload) addMessagePayload.value = "";
 }
 if (closeAddModalBtn && addModal) {
   closeAddModalBtn.addEventListener("click", closeAddModal);
@@ -1475,14 +1678,22 @@ function updateAddModalFields() {
   const typeEl = document.getElementById("addType");
   if (!typeEl) return;
   const val = typeEl.value;
-  const groups = addModal.querySelectorAll('.modal-group');
-  groups.forEach((g) => {
-    const forAttr = (g.dataset.for || "").split(",").map((s) => s.trim()).filter(Boolean);
-    if (forAttr.length === 0) {
-      g.style.display = "none";
-      return;
-    }
-    g.style.display = forAttr.includes(val) ? "flex" : "none";
+  const rows = addModal.querySelectorAll('.modal-row');
+  rows.forEach((row) => {
+    const groups = Array.from(row.querySelectorAll('.modal-group'));
+    if (!groups.length) return;
+    let rowVisible = false;
+    groups.forEach((g) => {
+      const forAttr = (g.dataset.for || "").split(",").map((s) => s.trim()).filter(Boolean);
+      if (forAttr.length === 0) {
+        g.style.display = "none";
+        return;
+      }
+      const showGroup = forAttr.includes(val);
+      g.style.display = showGroup ? "flex" : "none";
+      if (showGroup) rowVisible = true;
+    });
+    row.style.display = rowVisible ? "flex" : "none";
   });
 
   // 显示/隐藏 goto 的内部条件控件（repeat / color）
@@ -1518,6 +1729,8 @@ if (openAddModalBtn) {
       const typeEl = document.getElementById("addType");
       if (typeEl) typeEl.value = evt.type === "goto" ? "goto" : evt.type === "label" ? "label" : evt.type;
       // fill fields
+      if (addMessageChannel) addMessageChannel.value = "";
+      if (addMessagePayload) addMessagePayload.value = "";
       if (evt.type === "tap") {
         addX.value = Math.round(evt.x || 0);
         addY.value = Math.round(evt.y || 0);
@@ -1534,6 +1747,10 @@ if (openAddModalBtn) {
       }
       if (evt.type === "wait") {
         if (addWaitDuration) addWaitDuration.value = ((Number(evt.t) || 0) / 1000).toFixed(2);
+      }
+      if (evt.type === "message") {
+        if (addMessageChannel) addMessageChannel.value = String(evt.channel || "");
+        if (addMessagePayload) addMessagePayload.value = String(evt.payload || "");
       }
       // cond
       if (evt.cond) {
@@ -2184,9 +2401,27 @@ if (themeIconBtn) {
   });
 }
 
+function updateScreenControlState() {
+  if (screenPauseBtn) screenPauseBtn.disabled = screenPaused;
+  if (screenResumeBtn) screenResumeBtn.disabled = !screenPaused;
+}
+
+function setScreenPaused(paused) {
+  screenPaused = !!paused;
+  updateScreenControlState();
+}
+
+if (screenPauseBtn) {
+  screenPauseBtn.addEventListener('click', () => setScreenPaused(true));
+}
+if (screenResumeBtn) {
+  screenResumeBtn.addEventListener('click', () => setScreenPaused(false));
+}
+setScreenPaused(false);
+
 const PANEL_STATE_PREFIX = 'sidebarPanelState:';
-const PANEL_MIN_HEIGHT = 120;
-const PANEL_MAX_HEIGHT = 420;
+const PANEL_MIN_HEIGHT = 80;
+const PANEL_MAX_HEIGHT = 500;
 
 function clampPanelHeight(value) {
   const parsed = Number(value);
