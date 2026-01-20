@@ -25,6 +25,7 @@ const intervalInput = document.getElementById("intervalInput");
 const loopInput = document.getElementById("loopInput");
 const scheduleBtn = document.getElementById("scheduleBtn");
 const stopScheduleBtn = document.getElementById("stopScheduleBtn");
+if (stopScheduleBtn) stopScheduleBtn.disabled = true;
 const addType = document.getElementById("addType");
 const addX = document.getElementById("addX");
 const addY = document.getElementById("addY");
@@ -67,15 +68,49 @@ let isPaused = false;
 let recordStart = 0;
 let recordedEvents = [];
 let isPlaying = false;
-let playbackTimers = [];
 let scheduleActive = false;
-let scheduleTimerId = null;
-let scheduleLoopsLeft = 0;
 let logs = [];
+let pendingGotoLabel = null;
 
 const wsProtocol = location.protocol === "https:" ? "wss" : "ws";
 const ws = new WebSocket(`${wsProtocol}://${location.host}`);
 ws.binaryType = "blob";
+
+function sendControlMessage(payload) {
+  if (!ws || ws.readyState !== WebSocket.OPEN) {
+    addLog(t('log.websocketDisconnected'));
+    return false;
+  }
+  try {
+    ws.send(JSON.stringify(payload));
+    return true;
+  } catch (err) {
+    addLog(t('log.send_failed', { err: err && err.message ? err.message : String(err) }));
+    return false;
+  }
+}
+
+function setManualPlaybackState(active) {
+  isPlaying = !!active;
+  if (active) {
+    playBtn.classList.add('active');
+  } else {
+    playBtn.classList.remove('active');
+  }
+}
+
+function setScheduleState(active) {
+  scheduleActive = !!active;
+  if (scheduleActive) {
+    scheduleBtn.classList.add('active');
+    if (stopScheduleBtn) stopScheduleBtn.disabled = false;
+    playBtn.disabled = true;
+  } else {
+    scheduleBtn.classList.remove('active');
+    if (stopScheduleBtn) stopScheduleBtn.disabled = true;
+    playBtn.disabled = false;
+  }
+}
 
 function appendLogLine(text, type) {
   // centralize logs into `logs` array so renderLogList keeps them
@@ -682,6 +717,8 @@ ws.addEventListener("open", () => {
 ws.addEventListener("close", () => {
   statusEl.textContent = t('status.disconnected');
   addLog(t('log.websocketDisconnected'));
+  setManualPlaybackState(false);
+  setScheduleState(false);
 });
 
 const BLANK_IMG =
@@ -689,7 +726,12 @@ const BLANK_IMG =
 
 let lastObjectUrl = null;
 ws.addEventListener("message", (event) => {
-  const blob = new Blob([event.data], { type: "image/jpeg" });
+  if (typeof event.data === "string") {
+    handleServerSignalMessage(event.data);
+    return;
+  }
+  const payload = event.data;
+  const blob = payload instanceof Blob ? payload : new Blob([payload], { type: "image/jpeg" });
   const url = URL.createObjectURL(blob);
   const img = new Image();
   img.onload = () => {
@@ -705,6 +747,116 @@ ws.addEventListener("message", (event) => {
   };
   img.src = url;
 });
+
+function handleServerSignalMessage(raw) {
+  if (!raw) return;
+  let payload = null;
+  try {
+    payload = JSON.parse(raw);
+  } catch (err) {
+    return;
+  }
+  handleServerSignal(payload);
+}
+
+function logPlaybackAction(action) {
+  if (!action || typeof action !== 'object') return;
+  switch (action.type) {
+    case 'tap':
+      addLog(t('log.playEvent.tap', { x: Math.round(action.x || 0), y: Math.round(action.y || 0) }));
+      break;
+    case 'swipe':
+      addLog(t('log.playEvent.swipe', {
+        x1: Math.round(action.x1 || 0),
+        y1: Math.round(action.y1 || 0),
+        x2: Math.round(action.x2 || 0),
+        y2: Math.round(action.y2 || 0),
+      }));
+      break;
+    case 'longpress':
+      addLog(t('log.playEvent.longpress', {
+        x: Math.round(action.x || 0),
+        y: Math.round(action.y || 0),
+        duration: Math.round(action.duration || 0),
+      }));
+      break;
+    case 'power':
+      if (action.long) {
+        addLog(t('log.power.play.long', { dur: Math.round(action.duration || 0) }));
+      } else {
+        addLog(t('log.power.play.short'));
+      }
+      break;
+    case 'input':
+      addLog(t('log.playInput', { text: String(action.text || '') }));
+      break;
+    case 'key':
+      addLog(t('log.playKey', { key: String(action.key || '') }));
+      break;
+    default:
+      break;
+  }
+}
+
+function handleServerSignal(payload) {
+  if (!payload || typeof payload !== 'object') return;
+  switch (payload.type) {
+    case 'playback:started':
+      if (payload.context === 'manual') {
+        setManualPlaybackState(true);
+        addLog(t('log.startPlayback'));
+      }
+      break;
+    case 'playback:completed':
+      if (payload.context === 'manual') {
+        setManualPlaybackState(false);
+        addLog(t('log.playbackDone'));
+        if (pendingGotoLabel) {
+          addLog(t('log.playFromTagDone', { name: pendingGotoLabel }));
+          pendingGotoLabel = null;
+        }
+      }
+      break;
+    case 'playback:stopped':
+      if (payload.context === 'manual') {
+        setManualPlaybackState(false);
+        addLog(t('log.stopPlayback'));
+        if (pendingGotoLabel) pendingGotoLabel = null;
+      }
+      break;
+    case 'playback:error':
+      if (payload.context === 'manual') setManualPlaybackState(false);
+      addLog(t('log.send_failed', { err: payload.error || 'playback error' }));
+      pendingGotoLabel = null;
+      break;
+    case 'playback:action':
+      logPlaybackAction(payload.action);
+      break;
+    case 'schedule:started':
+      setScheduleState(true);
+      addLog(t('log.scheduledStart'));
+      break;
+    case 'schedule:loopStarted':
+      break;
+    case 'schedule:loopCompleted':
+      addLog(t('log.scheduledRoundComplete'));
+      break;
+    case 'schedule:finished':
+      setScheduleState(false);
+      addLog(t('log.scheduledStopped'));
+      break;
+    case 'schedule:stopped':
+      setScheduleState(false);
+      addLog(t('log.scheduledStopped'));
+      break;
+    case 'schedule:error':
+      setScheduleState(false);
+      addLog(t('log.send_failed', { err: payload.error || 'schedule error' }));
+      break;
+    default:
+      break;
+  }
+}
 
 function sendTap(x, y, meta = {}) {
   // 在取色模式下屏蔽发送到手机
@@ -748,131 +900,157 @@ function recordEvent(event) {
   renderEventList();
 }
 
-function stopPlayback(options = {}) {
-  playbackTimers.forEach((id) => clearTimeout(id));
-  playbackTimers = [];
-  isPlaying = false;
-  if (!options.keepButton) {
-    playBtn.classList.remove("active");
+function planTimeline(events, options = {}) {
+  if (!Array.isArray(events) || !events.length) return [];
+  try {
+    return createPlaybackTimeline(events, options);
+  } catch (err) {
+    addLog(t('log.send_failed', { err: err && err.message ? err.message : String(err) }));
+    return [];
   }
 }
 
-function getPlaybackDuration(events) {
-  if (!events.length) return 0;
-  return events.reduce((s, e) => s + Number(e.t || 0), 0) + 50;
+function createPlaybackTimeline(events, options = {}) {
+  const cloned = events.map((evt) => {
+    if (!evt) return null;
+    const next = { ...evt };
+    if (evt.cond) next.cond = { ...evt.cond };
+    return next;
+  });
+  const labels = new Map();
+  cloned.forEach((evt, idx) => {
+    if (evt && evt.type === 'label' && evt.name) {
+      labels.set(evt.name, idx);
+    }
+  });
+  const timeline = [];
+  const MAX_ACTIONS = 5000;
+
+  function shouldJump(name, cond) {
+    if (!cond) {
+      if (options.logGoto !== false) addLog(t('log.gotoNoCond', { name }));
+      return true;
+    }
+    if (cond.type === 'repeat') {
+      cond._executed = cond._executed || 0;
+      const times = Math.max(0, Number(cond.times || 0));
+      if (cond._executed < times) {
+        cond._executed += 1;
+        if (options.logGoto !== false) addLog(t('log.gotoRepeatExec', { name, n: cond._executed }));
+        return true;
+      }
+      if (options.logGoto !== false) addLog(t('log.gotoRepeatSkip', { name }));
+      return false;
+    }
+    if (cond.type === 'color') {
+      const sampled = sampleAtCond(cond);
+      const dist = colorDistanceHex(sampled, String(cond.color || ''));
+      if (options.logGoto !== false) addLog(t('log.gotoColorCond', { name, sampled, dist: Math.round(dist) }));
+      const tol = Number(cond.tol || 0);
+      if (dist <= tol) {
+        return true;
+      }
+      if (options.logGoto !== false) addLog(t('log.gotoColorNotMet', { name }));
+      return false;
+    }
+    if (options.logGoto !== false) addLog(t('log.gotoNoCond', { name }));
+    return true;
+  }
+
+  function processRange(startIndex, baseDelay, depth) {
+    if (depth > 32) throw new Error('Goto depth exceeded');
+    let delay = baseDelay;
+    for (let i = startIndex; i < cloned.length; i += 1) {
+      const evt = cloned[i];
+      if (!evt) continue;
+      delay += Math.max(0, Number(evt.t || 0));
+      switch (evt.type) {
+        case 'tap':
+          timeline.push({ delay, type: 'tap', x: Number(evt.x || 0), y: Number(evt.y || 0) });
+          break;
+        case 'swipe':
+          timeline.push({
+            delay,
+            type: 'swipe',
+            x1: Number(evt.x1 || 0),
+            y1: Number(evt.y1 || 0),
+            x2: Number(evt.x2 || 0),
+            y2: Number(evt.y2 || 0),
+            duration: Number(evt.duration || 0),
+          });
+          break;
+        case 'longpress':
+          timeline.push({
+            delay,
+            type: 'longpress',
+            x: Number(evt.x || 0),
+            y: Number(evt.y || 0),
+            duration: Number(evt.duration || 0),
+          });
+          break;
+        case 'power':
+          timeline.push({ delay, type: 'power', long: !!evt.long, duration: Number(evt.duration || 0) });
+          break;
+        case 'input':
+          timeline.push({ delay, type: 'input', text: String(evt.text || '') });
+          break;
+        case 'key':
+          timeline.push({ delay, type: 'key', key: String(evt.key || '') });
+          break;
+        case 'goto':
+          if (!evt.name) break;
+          if (options.logGoto !== false) addLog(t('log.gotoEncounter', { name: evt.name }));
+          if (shouldJump(evt.name, evt.cond || null)) {
+            const idx = labels.get(evt.name);
+            if (idx == null) {
+              if (options.logGoto !== false) addLog(t('log.tagNotFound', { name: evt.name }));
+              break;
+            }
+            if (options.logGoto !== false) addLog(t('log.playFromTagStart', { name: evt.name }));
+            processRange(idx, delay, depth + 1);
+            if (options.logGoto !== false) addLog(t('log.playFromTagDone', { name: evt.name }));
+            return;
+          }
+          break;
+        case 'label':
+        case 'wait':
+          break;
+        default:
+          break;
+      }
+      if (timeline.length > MAX_ACTIONS) {
+        throw new Error('Playback action count exceeded');
+      }
+    }
+  }
+
+  processRange(0, 0, 0);
+  return timeline;
 }
 
 function startPlayback(events, options = {}) {
-  if (!events.length) return 0;
-  if (isPlaying) {
-    stopPlayback({ keepButton: !options.markButton });
+  if (!Array.isArray(events) || !events.length) return { timeline: [] };
+  const timeline = planTimeline(events, { logGoto: options.logGoto !== false });
+  if (!timeline.length) return { timeline };
+  const context = options.context || 'manual';
+  const payload = { type: 'playback:start', context, timeline };
+  if (!sendControlMessage(payload)) {
+    return { timeline };
   }
-  isPlaying = true;
-  if (options.markButton) {
-    playBtn.classList.add("active");
+  if (context === 'manual' && options.markButton !== false) {
+    setManualPlaybackState(true);
+    if (!options.keepGotoLabel) pendingGotoLabel = null;
   }
+  return { timeline };
+}
 
-  let cum = 0;
-  events.forEach((evt) => {
-    cum += Math.max(0, Number(evt.t || 0));
-    const id = setTimeout(() => {
-      if (!isPlaying) return;
-      if (evt.type === "tap") {
-        sendTap(evt.x, evt.y, { playback: true });
-        if (options.logEvents) addLog(t('log.playEvent.tap', { x: Math.round(evt.x), y: Math.round(evt.y) }));
-      } else if (evt.type === "power") {
-        // trigger device power key, include long/duration if present
-        try { ws.send(JSON.stringify({ type: 'power', playback: true, long: !!evt.long, duration: Number(evt.duration || 0) })); } catch (e) { }
-        if (options.logEvents) {
-          if (evt.long) addLog(t('log.power.play.long', { dur: Number(evt.duration || 0) }));
-          else addLog(t('log.power.play.short'));
-        }
-      } else if (evt.type === 'input') {
-        // send text input
-        try { ws.send(JSON.stringify({ type: 'input', text: String(evt.text || ''), playback: true })); } catch (e) {}
-        if (options.logEvents) addLog(t('log.playInput', { text: String(evt.text || '') }));
-      } else if (evt.type === 'key') {
-        try { ws.send(JSON.stringify({ type: 'key', key: evt.key, playback: true })); } catch (e) {}
-        if (options.logEvents) addLog(t('log.playKey', { key: String(evt.key || '') }));
-      } else if (evt.type === "swipe") {
-        sendSwipe(evt.x1, evt.y1, evt.x2, evt.y2, evt.duration, { playback: true });
-        if (options.logEvents)
-          addLog(t('log.playEvent.swipe', { x1: Math.round(evt.x1), y1: Math.round(evt.y1), x2: Math.round(evt.x2), y2: Math.round(evt.y2) }));
-      } else if (evt.type === "longpress") {
-        sendLongPress(evt.x, evt.y, evt.duration, { playback: true });
-        if (options.logEvents) addLog(t('log.playEvent.longpress', { x: Math.round(evt.x), y: Math.round(evt.y), duration: Math.round(evt.duration) }));
-      } else if (evt.type === "goto") {
-        // 当回放遇到 goto，先评估条件（若存在），满足则停止当前回放并从标签处继续
-        if (options.logEvents) addLog(t('log.gotoEncounter', { name: evt.name }));
-        const cond = evt.cond || null;
-        // 优先处理 color 条件并直接返回，避免后续重复处理
-        if (cond && cond.type === "color") {
-          const sampled = sampleAtCond(cond);
-          const dist = colorDistanceHex(sampled, String(cond.color || ""));
-          if (options.logEvents) addLog(t('log.gotoColorCond', { name: evt.name, sampled, dist: Math.round(dist) }));
-          const tol = Number(cond.tol || 0);
-          if (dist <= tol) {
-            stopPlayback();
-            gotoTag(evt.name);
-          } else {
-            if (options.logEvents) addLog(t('log.gotoColorNotMet', { name: evt.name }));
-          }
-          return;
-        }
-        if (cond) {
-          if (cond.type === "repeat") {
-            cond._executed = cond._executed || 0;
-            const times = Number(cond.times || 0);
-            if (cond._executed < times) {
-              cond._executed += 1;
-              if (options.logEvents) addLog(t('log.gotoRepeatExec', { name: evt.name, n: cond._executed }));
-              stopPlayback();
-              gotoTag(evt.name);
-            } else {
-              if (options.logEvents) addLog(t('log.gotoRepeatSkip', { name: evt.name }));
-            }
-          } else if (cond.type === "color") {
-            // 在屏幕中心采样
-            const cx = Math.floor((screenEl.width || 0) / 2);
-            const cy = Math.floor((screenEl.height || 0) / 2);
-            const radius = Math.max(0, Math.floor(Number(cond.radius || 3)));
-            const sampled = sampleAverageColor(cx, cy, radius);
-            const dist = colorDistanceHex(sampled, String(cond.color || ""));
-            if (options.logEvents) addLog(t('log.gotoColorCond', { name: evt.name, sampled, dist: Math.round(dist) }));
-            const tol = Number(cond.tol || 0);
-            if (dist <= tol) {
-              stopPlayback();
-              gotoTag(evt.name);
-            } else {
-              if (options.logEvents) addLog(t('log.gotoColorNotMet', { name: evt.name }));
-            }
-          } else {
-            // 未知条件类型，直接跳转
-            stopPlayback();
-            gotoTag(evt.name);
-          }
-        } else {
-          // 无条件直接跳转
-          if (options.logEvents) addLog(t('log.gotoNoCond', { name: evt.name }));
-          stopPlayback();
-          gotoTag(evt.name);
-        }
-      }
-      else if (evt.type === "longpress") {
-        // handled above
-      }
-    }, cum);
-    playbackTimers.push(id);
-  });
-
-  const duration = getPlaybackDuration(events);
-  const endId = setTimeout(() => {
-    isPlaying = false;
-    if (options.markButton) playBtn.classList.remove("active");
-    if (typeof options.onDone === "function") options.onDone();
-  }, duration);
-  playbackTimers.push(endId);
-  return duration;
+function stopPlayback(options = {}) {
+  const context = options.context || 'manual';
+  sendControlMessage({ type: 'playback:stop', context });
+  if (context === 'manual') {
+    setManualPlaybackState(false);
+    pendingGotoLabel = null;
+  }
 }
 
 function formatTime(ms) {
@@ -1471,8 +1649,9 @@ function gotoTag(name) {
     return;
   }
   const slice = recordedEvents.slice(idx).map((e) => ({ ...e }));
-  startPlayback(slice, { markButton: true, logEvents: true, onDone: () => addLog(t('log.playFromTagDone', { name })) });
+  pendingGotoLabel = name;
   addLog(t('log.playFromTagStart', { name }));
+  startPlayback(slice, { markButton: true, logGoto: true, keepGotoLabel: true });
 }
 
 // goto input/button removed; use modal to add goto events
@@ -1855,19 +2034,14 @@ pauseBtn.addEventListener("click", () => {
 playBtn.addEventListener("click", () => {
   if (isPlaying) {
     stopPlayback();
-    addLog(t('log.stopPlayback'));
     return;
   }
   if (!recordedEvents.length) return;
 
   startPlayback(recordedEvents, {
     markButton: true,
-    logEvents: true,
-    onDone: () => {
-      addLog(t('log.playbackDone'));
-    },
+    logGoto: true,
   });
-  addLog(t('log.startPlayback'));
 });
 
 saveBtn.addEventListener("click", () => {
@@ -1906,44 +2080,6 @@ loadInput.addEventListener("change", async (event) => {
   }
 });
 
-function clearSchedule() {
-  if (scheduleTimerId) {
-    clearTimeout(scheduleTimerId);
-    scheduleTimerId = null;
-  }
-  scheduleActive = false;
-  scheduleBtn.classList.remove("active");
-  stopScheduleBtn.disabled = true;
-}
-
-function runScheduledLoop() {
-  if (!scheduleActive) return;
-  if (!recordedEvents.length) {
-    clearSchedule();
-    return;
-  }
-
-  if (scheduleLoopsLeft !== Infinity) {
-    if (scheduleLoopsLeft <= 0) {
-      clearSchedule();
-      return;
-    }
-    scheduleLoopsLeft -= 1;
-  }
-
-    startPlayback(recordedEvents, {
-    markButton: false,
-    logEvents: true,
-    onDone: () => {
-      if (!scheduleActive) return;
-      const interval = Math.max(0, Number(intervalInput.value || 0));
-        addLog(t('log.scheduledRoundComplete'));
-      scheduleTimerId = setTimeout(runScheduledLoop, interval);
-    },
-  });
-    addLog(t('log.scheduledStart'));
-}
-
 function getDelayFromTimeValue(timeValue) {
   if (!timeValue) return 0;
   const parts = timeValue.split(":");
@@ -1972,28 +2108,29 @@ function getDelayFromTimeValue(timeValue) {
   return target.getTime() - now.getTime();
 }
 
-scheduleBtn.addEventListener("click", () => {
-  if (!recordedEvents.length) return;
-  if (scheduleActive) return;
-  scheduleActive = true;
-  scheduleBtn.classList.add("active");
-  stopScheduleBtn.disabled = false;
+if (scheduleBtn) {
+  scheduleBtn.addEventListener("click", () => {
+    if (!recordedEvents.length) return;
+    if (scheduleActive) return;
+    if (isPlaying) {
+      stopPlayback();
+    }
+    const timeline = planTimeline(recordedEvents, { logGoto: true });
+    if (!timeline.length) return;
+    const delay = getDelayFromTimeValue(timeInput.value);
+    const interval = Math.max(0, Number(intervalInput.value || 0));
+    const loops = Math.max(0, Number(loopInput.value || 0));
+    const payload = { type: 'schedule:start', timeline, delay, interval, loops };
+    if (!sendControlMessage(payload)) return;
+    setScheduleState(true);
+  });
+}
 
-  const delay = getDelayFromTimeValue(timeInput.value);
-  const loops = Math.max(0, Number(loopInput.value || 0));
-  scheduleLoopsLeft = loops === 0 ? Infinity : loops;
-
-  scheduleTimerId = setTimeout(runScheduledLoop, delay);
-  addLog(t('log.scheduledStart'));
-});
-
-stopScheduleBtn.addEventListener("click", () => {
-  clearSchedule();
-  if (isPlaying) {
-    stopPlayback({ keepButton: true });
-  }
-  addLog(t('log.scheduledStopped'));
-});
+if (stopScheduleBtn) {
+  stopScheduleBtn.addEventListener("click", () => {
+    sendControlMessage({ type: 'schedule:stop' });
+  });
+}
 
 renderEventList();
 renderLogList();

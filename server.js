@@ -120,7 +120,8 @@ const server = app.listen(PORT, () =>
     console.log(`Server running at http://localhost:${PORT}`);
 });
 
-const wss = new WebSocket.Server({ server });
+let wss = null;
+wss = new WebSocket.Server({ server });
 
 // API: install minicap into connected device
 app.post('/install-minicap', async (req, res) => {
@@ -243,6 +244,548 @@ function runAdbCommandPromise(args, options)
 function delay(ms)
 {
     return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function execTapAction(x, y)
+{
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    const tx = Math.round(x);
+    const ty = Math.round(y);
+    runAdbCommand(["shell", "input", "tap", String(tx), String(ty)], {}, (err) =>
+    {
+        if (err)
+        {
+            console.error("Tap failed:", err.message || err);
+        }
+    });
+}
+
+function execSwipeAction({ x1, y1, x2, y2, duration })
+{
+    if (!Number.isFinite(x1) || !Number.isFinite(y1) || !Number.isFinite(x2) || !Number.isFinite(y2)) return;
+    const durationMs = Number.isFinite(duration) ? Math.max(50, Math.round(duration)) : 120;
+    runAdbCommand([
+        "shell",
+        "input",
+        "swipe",
+        String(Math.round(x1)),
+        String(Math.round(y1)),
+        String(Math.round(x2)),
+        String(Math.round(y2)),
+        String(durationMs),
+    ], {}, (err) =>
+    {
+        if (err)
+        {
+            console.error("Swipe failed:", err.message || err);
+        }
+    });
+}
+
+function execInputText(text)
+{
+    if (typeof text !== "string") return;
+    let txt = String(text);
+    txt = txt.replace(/%/g, "%25").replace(/ /g, "%s");
+    runAdbCommand(["shell", "input", "text", txt], {}, (err) =>
+    {
+        if (err)
+        {
+            console.error("Input text failed:", err.message || err);
+        }
+    });
+}
+
+function execKeyAction(key)
+{
+    if (!key) return;
+    const map = {
+        Enter: "66",
+        Backspace: "67",
+        Tab: "61",
+        Escape: "111",
+        Home: "3",
+        Back: "4",
+        Menu: "82",
+        VolumeUp: "24",
+        VolumeDown: "25",
+        PageUp: "92",
+        PageDown: "93",
+        Insert: "124",
+        Delete: "112",
+        Space: "62",
+    };
+    const code = map[key];
+    if (code)
+    {
+        runAdbCommand(["shell", "input", "keyevent", code], {}, (err) =>
+        {
+            if (err)
+            {
+                console.error("Key event failed:", err.message || err);
+            }
+        });
+        return;
+    }
+    if (key.length === 1)
+    {
+        const ch = key === " " ? "%s" : key;
+        runAdbCommand(["shell", "input", "text", ch], {}, (err) =>
+        {
+            if (err)
+            {
+                console.error("Char input failed:", err.message || err);
+            }
+        });
+    }
+}
+
+function execPowerAction({ long, duration })
+{
+    const isLong = !!long;
+    const dur = Number(duration || 0);
+    if (isLong)
+    {
+        runAdbCommand(["shell", "input", "keyevent", "--longpress", "26"], {}, (err) =>
+        {
+            if (err)
+            {
+                console.warn("Longpress keyevent not supported, falling back to short press:", err.message || err);
+                runAdbCommand(["shell", "input", "keyevent", "26"], {}, (fallbackErr) =>
+                {
+                    if (fallbackErr)
+                    {
+                        console.error("Power key failed:", fallbackErr.message || fallbackErr);
+                    }
+                });
+            }
+        });
+        return;
+    }
+    runAdbCommand(["shell", "input", "keyevent", "26"], {}, (err) =>
+    {
+        if (err)
+        {
+            console.error("Power key failed:", err.message || err);
+        }
+    });
+}
+
+function execLongpressAction({ x, y, duration })
+{
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(duration)) return;
+    const dur = Math.max(50, Math.round(duration));
+    const tx = Math.round(x);
+    const ty = Math.round(y);
+    runAdbCommand([
+        "shell",
+        "input",
+        "swipe",
+        String(tx),
+        String(ty),
+        String(tx),
+        String(ty),
+        String(dur),
+    ], {}, (err) =>
+    {
+        if (err)
+        {
+            console.error("Longpress failed:", err.message || err);
+        }
+    });
+}
+
+function performDeviceAction(action)
+{
+    if (!action || typeof action !== "object") return;
+    switch (action.type)
+    {
+        case "tap":
+            execTapAction(action.x, action.y);
+            break;
+        case "swipe":
+            execSwipeAction(action);
+            break;
+        case "input":
+            execInputText(String(action.text || ""));
+            break;
+        case "key":
+            execKeyAction(String(action.key || ""));
+            break;
+        case "power":
+            execPowerAction(action);
+            break;
+        case "longpress":
+            execLongpressAction(action);
+            break;
+        default:
+            break;
+    }
+}
+
+function sendJson(ws, payload)
+{
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    try
+    {
+        ws.send(JSON.stringify(payload));
+    }
+    catch (err)
+    {
+        console.warn("Unable to send ws payload:", err && err.message ? err.message : err);
+    }
+}
+
+function sendRawToAllClients(message)
+{
+    if (!message || !wss) return;
+    for (const client of wss.clients)
+    {
+        if (client.readyState === WebSocket.OPEN)
+        {
+            try
+            {
+                client.send(message);
+            }
+            catch (err)
+            {
+                console.warn("Broadcast send failed:", err && err.message ? err.message : err);
+            }
+        }
+    }
+}
+
+function broadcastJson(payload)
+{
+    try
+    {
+        sendRawToAllClients(JSON.stringify(payload));
+    }
+    catch (err)
+    {
+        console.warn("Broadcast json failed:", err && err.message ? err.message : err);
+    }
+}
+
+const schedulerTransport = {
+    readyState: WebSocket.OPEN,
+    send(message)
+    {
+        sendRawToAllClients(message);
+    },
+};
+
+const scheduleState = {
+    active: false,
+    timeline: null,
+    interval: 0,
+    loopsLeft: 0,
+    totalLoops: 0,
+    nextTimer: null,
+};
+
+function scheduleRemainingLoops()
+{
+    return scheduleState.loopsLeft === Infinity ? null : scheduleState.loopsLeft;
+}
+
+function clearScheduleTimer()
+{
+    if (scheduleState.nextTimer)
+    {
+        clearTimeout(scheduleState.nextTimer);
+        scheduleState.nextTimer = null;
+    }
+}
+
+function stopSchedule(options)
+{
+    const opts = options || {};
+    const reason = opts.reason || "stopped";
+    const wasActive = scheduleState.active;
+    clearScheduleTimer();
+    const playbackState = getClientState(schedulerTransport);
+    if (reason !== "finished" && playbackState.playbackActive)
+    {
+        stopBackendPlayback(schedulerTransport, { force: true, reason: "stopped" });
+    }
+    scheduleState.active = false;
+    scheduleState.timeline = null;
+    scheduleState.interval = 0;
+    scheduleState.loopsLeft = 0;
+    scheduleState.totalLoops = 0;
+    if (opts.silent) return;
+    if (!wasActive && reason === "stopped")
+    {
+        broadcastJson({ type: "schedule:stopped" });
+        return;
+    }
+    switch (reason)
+    {
+        case "finished":
+            broadcastJson({ type: "schedule:finished" });
+            break;
+        case "error":
+            broadcastJson({ type: "schedule:error", error: opts.error || "unknown" });
+            break;
+        default:
+            broadcastJson({ type: "schedule:stopped" });
+            break;
+    }
+}
+
+function runScheduleLoop()
+{
+    scheduleState.nextTimer = null;
+    if (!scheduleState.active)
+    {
+        return;
+    }
+    if (!scheduleState.timeline || scheduleState.timeline.length === 0)
+    {
+        stopSchedule({ reason: "error", error: "timeline missing" });
+        return;
+    }
+    if (scheduleState.loopsLeft !== Infinity)
+    {
+        if (scheduleState.loopsLeft <= 0)
+        {
+            stopSchedule({ reason: "finished" });
+            return;
+        }
+        scheduleState.loopsLeft -= 1;
+    }
+    broadcastJson({ type: "schedule:loopStarted", remaining: scheduleRemainingLoops() });
+    const started = startBackendPlayback(schedulerTransport, scheduleState.timeline, "schedule", () =>
+    {
+        if (!scheduleState.active)
+        {
+            return;
+        }
+        broadcastJson({ type: "schedule:loopCompleted", remaining: scheduleRemainingLoops() });
+        if (scheduleState.loopsLeft === 0)
+        {
+            stopSchedule({ reason: "finished" });
+            return;
+        }
+        scheduleState.nextTimer = setTimeout(runScheduleLoop, scheduleState.interval);
+    });
+    if (!started)
+    {
+        stopSchedule({ reason: "error", error: "unable to start playback" });
+    }
+}
+
+function handleScheduleStart(ws, payload)
+{
+    const timeline = sanitizeTimeline(payload && Array.isArray(payload.timeline) ? payload.timeline : []);
+    if (!timeline.length)
+    {
+        sendJson(ws, { type: "schedule:error", error: "timeline empty" });
+        return;
+    }
+    const interval = Math.max(0, Number(payload && payload.interval ? payload.interval : 0));
+    const delay = Math.max(0, Number(payload && payload.delay ? payload.delay : 0));
+    let loopsValue = Number(payload && payload.loops ? payload.loops : 0);
+    loopsValue = Number.isFinite(loopsValue) ? Math.max(0, loopsValue) : 0;
+    const loopsConfig = loopsValue === 0 ? Infinity : loopsValue;
+    stopSchedule({ reason: "stopped", silent: true });
+    scheduleState.active = true;
+    scheduleState.timeline = timeline;
+    scheduleState.interval = interval;
+    scheduleState.totalLoops = loopsConfig;
+    scheduleState.loopsLeft = loopsConfig;
+    scheduleState.nextTimer = setTimeout(runScheduleLoop, delay);
+    broadcastJson({
+        type: "schedule:started",
+        delay,
+        interval,
+        loops: loopsValue === 0 ? null : loopsValue,
+        remaining: loopsConfig === Infinity ? null : loopsConfig,
+    });
+}
+
+function notifyScheduleState(ws)
+{
+    if (!scheduleState.active || !ws || ws.readyState !== WebSocket.OPEN) return;
+    sendJson(ws, {
+        type: "schedule:started",
+        delay: 0,
+        interval: scheduleState.interval,
+        loops: scheduleState.totalLoops === Infinity ? null : scheduleState.totalLoops,
+        remaining: scheduleRemainingLoops(),
+    });
+    const schedulerPlaybackState = getClientState(schedulerTransport);
+    if (schedulerPlaybackState.playbackActive)
+    {
+        sendJson(ws, { type: "schedule:loopStarted", remaining: scheduleRemainingLoops() });
+    }
+}
+
+const clientStateStore = new WeakMap();
+
+function getClientState(ws)
+{
+    if (!clientStateStore.has(ws))
+    {
+        clientStateStore.set(ws, {
+            playbackTimers: [],
+            playbackActive: false,
+            playbackContext: null,
+            playbackCompleteHandler: null,
+        });
+    }
+    return clientStateStore.get(ws);
+}
+
+function clearPlaybackTimers(state)
+{
+    if (!state) return;
+    if (Array.isArray(state.playbackTimers))
+    {
+        state.playbackTimers.forEach((timer) =>
+        {
+            if (timer) clearTimeout(timer);
+        });
+    }
+    state.playbackTimers = [];
+}
+
+function sanitizeTimeline(entries)
+{
+    if (!Array.isArray(entries)) return [];
+    const limit = Number(process.env.PLAYBACK_MAX_ENTRIES || 5000);
+    const sanitized = [];
+    for (const rawEntry of entries.slice(0, limit))
+    {
+        if (!rawEntry || typeof rawEntry !== "object") continue;
+        const type = rawEntry.type;
+        const delay = Math.max(0, Math.round(Number(rawEntry.delay || 0)));
+        if (!type || !Number.isFinite(delay)) continue;
+        if (type === "tap" && Number.isFinite(rawEntry.x) && Number.isFinite(rawEntry.y))
+        {
+            sanitized.push({ type, delay, x: Number(rawEntry.x), y: Number(rawEntry.y) });
+            continue;
+        }
+        if (type === "swipe" && Number.isFinite(rawEntry.x1) && Number.isFinite(rawEntry.y1) && Number.isFinite(rawEntry.x2) && Number.isFinite(rawEntry.y2))
+        {
+            const duration = Number.isFinite(rawEntry.duration) ? Number(rawEntry.duration) : 120;
+            sanitized.push({ type, delay, x1: Number(rawEntry.x1), y1: Number(rawEntry.y1), x2: Number(rawEntry.x2), y2: Number(rawEntry.y2), duration });
+            continue;
+        }
+        if (type === "input" && typeof rawEntry.text === "string")
+        {
+            sanitized.push({ type, delay, text: rawEntry.text });
+            continue;
+        }
+        if (type === "key" && typeof rawEntry.key === "string")
+        {
+            sanitized.push({ type, delay, key: rawEntry.key });
+            continue;
+        }
+        if (type === "power")
+        {
+            sanitized.push({ type, delay, long: !!rawEntry.long, duration: Number(rawEntry.duration || 0) });
+            continue;
+        }
+        if (type === "longpress" && Number.isFinite(rawEntry.x) && Number.isFinite(rawEntry.y) && Number.isFinite(rawEntry.duration))
+        {
+            sanitized.push({ type, delay, x: Number(rawEntry.x), y: Number(rawEntry.y), duration: Number(rawEntry.duration) });
+            continue;
+        }
+    }
+    return sanitized;
+}
+
+function finishPlayback(ws, reason, extra)
+{
+    const state = getClientState(ws);
+    clearPlaybackTimers(state);
+    if (!state.playbackActive && reason !== "completed" && reason !== "error") return;
+    const context = state.playbackContext;
+    state.playbackActive = false;
+    state.playbackContext = null;
+    const handler = state.playbackCompleteHandler;
+    state.playbackCompleteHandler = null;
+    if (reason === "completed")
+    {
+        sendJson(ws, { type: "playback:completed", context });
+    }
+    else if (reason === "error")
+    {
+        sendJson(ws, { type: "playback:error", context, error: extra && extra.error ? extra.error : "unknown" });
+    }
+    else if (reason === "stopped")
+    {
+        sendJson(ws, { type: "playback:stopped", context });
+    }
+    if (typeof handler === "function")
+    {
+        try
+        {
+            handler(reason);
+        }
+        catch (err)
+        {
+            console.warn("playback completion handler failed:", err && err.message ? err.message : err);
+        }
+    }
+}
+
+function stopBackendPlayback(ws, options)
+{
+    const state = getClientState(ws);
+    if (!state.playbackActive && (!state.playbackTimers || state.playbackTimers.length === 0))
+    {
+        clearPlaybackTimers(state);
+        return false;
+    }
+    const opts = options || {};
+    if (opts && opts.context && state.playbackContext && state.playbackContext !== opts.context && !opts.force)
+    {
+        return false;
+    }
+    finishPlayback(ws, opts && opts.reason ? opts.reason : "stopped");
+    return true;
+}
+
+function startBackendPlayback(ws, timelineEntries, context, onDone)
+{
+    const timeline = sanitizeTimeline(timelineEntries);
+    if (!timeline.length)
+    {
+        sendJson(ws, { type: "playback:error", context: context || "manual", error: "timeline empty" });
+        return false;
+    }
+    const state = getClientState(ws);
+    stopBackendPlayback(ws, { force: true });
+    state.playbackActive = true;
+    state.playbackContext = context || "manual";
+    state.playbackCompleteHandler = typeof onDone === "function" ? onDone : null;
+    const timers = [];
+    let maxDelay = 0;
+    const playbackContext = state.playbackContext;
+    timeline.forEach((entry) =>
+    {
+        maxDelay = Math.max(maxDelay, entry.delay);
+        const timer = setTimeout(() =>
+        {
+            try
+            {
+                sendJson(ws, { type: "playback:action", context: playbackContext, action: entry });
+                performDeviceAction(entry);
+            }
+            catch (err)
+            {
+                console.error("Playback action failed:", err && err.message ? err.message : err);
+            }
+        }, entry.delay);
+        timers.push(timer);
+    });
+    timers.push(setTimeout(() => finishPlayback(ws, "completed"), maxDelay + 50));
+    state.playbackTimers = timers;
+    sendJson(ws, { type: "playback:started", context: state.playbackContext });
+    return true;
 }
 
 function getDeviceSize()
@@ -493,6 +1036,8 @@ wss.on("connection", (ws) =>
         });
     }
 
+    notifyScheduleState(ws);
+
     ws.on("message", (msg) =>
     {
         let data;
@@ -504,90 +1049,48 @@ wss.on("connection", (ws) =>
             return;
         }
 
+        if (data && data.type === "playback:start")
+        {
+            startBackendPlayback(ws, Array.isArray(data.timeline) ? data.timeline : [], data.context || "manual");
+            return;
+        }
+
+        if (data && data.type === "playback:stop")
+        {
+            stopBackendPlayback(ws, { context: data.context || "manual" });
+            return;
+        }
+
+        if (data && data.type === "schedule:start")
+        {
+            handleScheduleStart(ws, data);
+            return;
+        }
+
+        if (data && data.type === "schedule:stop")
+        {
+            stopSchedule({ reason: "stopped" });
+            return;
+        }
+
         if (data && data.type === "tap" && Number.isFinite(data.x) && Number.isFinite(data.y))
         {
-            const x = Math.round(data.x);
-            const y = Math.round(data.y);
-            runAdbCommand(["shell", "input", "tap", String(x), String(y)], {}, (err) =>
-            {
-                if (err)
-                {
-                    console.error("Tap failed:", err.message || err);
-                }
-            });
+            execTapAction(data.x, data.y);
         }
 
         // text input -> adb shell input text
         if (data && data.type === 'input' && typeof data.text === 'string') {
-            // adb input text treats spaces specially; replace spaces with %s
-            let txt = String(data.text);
-            // escape percent to avoid accidental expansions
-            txt = txt.replace(/%/g, '%25');
-            txt = txt.replace(/ /g, '%s');
-            runAdbCommand(["shell", "input", "text", txt], {}, (err) => {
-                if (err) {
-                    console.error('Input text failed:', err.message || err);
-                }
-            });
+            execInputText(String(data.text));
         }
 
         // generic key events -> map common keys to Android keycodes
         if (data && data.type === 'key' && data.key) {
-            const K = String(data.key);
-            const map = {
-                Enter: '66',
-                Backspace: '67',
-                Tab: '61',
-                Escape: '111',
-                Home: '3',
-                Back: '4',
-                Menu: '82',
-                VolumeUp: '24',
-                VolumeDown: '25',
-                PageUp: '92',
-                PageDown: '93',
-                Insert: '124',
-                Delete: '112',
-                Space: '62',
-            };
-            const code = map[K] || (K.length === 1 ? null : null);
-            if (code) {
-                runAdbCommand(["shell", "input", "keyevent", code], {}, (err) => {
-                    if (err) console.error('Key event failed:', err.message || err);
-                });
-            } else if (K.length === 1) {
-                // single character -> send as text
-                let ch = K;
-                if (ch === ' ') ch = '%s';
-                runAdbCommand(["shell", "input", "text", ch], {}, (err) => {
-                    if (err) console.error('Char input failed:', err.message || err);
-                });
-            } else {
-                // unknown named key -> no-op
-            }
+            execKeyAction(String(data.key));
         }
 
         // power key (support short / long when requested)
         if (data && data.type === "power") {
-            const isLong = !!data.long;
-            const duration = Number(data.duration || 0);
-            if (isLong) {
-                // try --longpress support; fallback to simple keyevent
-                runAdbCommand(["shell", "input", "keyevent", "--longpress", "26"], {}, (err) => {
-                    if (err) {
-                        console.warn('Longpress keyevent not supported, falling back to short press:', err.message || err);
-                        runAdbCommand(["shell", "input", "keyevent", "26"], {}, (err2) => {
-                            if (err2) console.error("Power key failed:", err2.message || err2);
-                        });
-                    }
-                });
-            } else {
-                runAdbCommand(["shell", "input", "keyevent", "26"], {}, (err) => {
-                    if (err) {
-                        console.error("Power key failed:", err.message || err);
-                    }
-                });
-            }
+            execPowerAction({ long: !!data.long, duration: data.duration });
         }
 
         if (
@@ -599,43 +1102,12 @@ wss.on("connection", (ws) =>
             Number.isFinite(data.y2)
         )
         {
-            const x1 = Math.round(data.x1);
-            const y1 = Math.round(data.y1);
-            const x2 = Math.round(data.x2);
-            const y2 = Math.round(data.y2);
-            const duration = Number.isFinite(data.duration) ? Math.max(50, Math.round(data.duration)) : 120;
-            runAdbCommand(
-                ["shell", "input", "swipe", String(x1), String(y1), String(x2), String(y2), String(duration)],
-                {},
-                (err) =>
-                {
-                    if (err)
-                    {
-                        console.error("Swipe failed:", err.message || err);
-                    }
-                }
-            );
+            execSwipeAction({ x1: data.x1, y1: data.y1, x2: data.x2, y2: data.y2, duration: data.duration });
         }
 
         // longpress: map to input swipe with same start/end to simulate press-and-hold
         if (data && data.type === "longpress" && Number.isFinite(data.x) && Number.isFinite(data.y) && Number.isFinite(data.duration)) {
-            const x = Math.round(data.x);
-            const y = Math.round(data.y);
-            const duration = Math.max(50, Math.round(data.duration));
-            runAdbCommand([
-                "shell",
-                "input",
-                "swipe",
-                String(x),
-                String(y),
-                String(x),
-                String(y),
-                String(duration),
-            ], {}, (err) => {
-                if (err) {
-                    console.error("Longpress failed:", err.message || err);
-                }
-            });
+            execLongpressAction({ x: data.x, y: data.y, duration: data.duration });
         }
     });
 
@@ -643,6 +1115,7 @@ wss.on("connection", (ws) =>
     {
         try
         {
+            stopBackendPlayback(ws, { force: true });
             const clients = Array.from(wss.clients).filter((c) => c.readyState === WebSocket.OPEN);
             if (clients.length === 0)
             {
@@ -660,6 +1133,7 @@ wss.on("close", () =>
 {
     try
     {
+        stopSchedule({ reason: "stopped" });
         stopMinicapStream();
     }
     catch (e)
