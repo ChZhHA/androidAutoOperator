@@ -1,41 +1,43 @@
 :root {
   color-scheme: dark;
-  --bg: #0f1115;
-  --bg-accent: #0b0f17;
-  --panel: #1a1f29;
-  --panel-strong: #151a23;
+  --bg: #0b0d11;
+  --bg-accent: #0e1118;
+  --panel: #131720;
+  --panel-strong: #0f121a;
   --text: #e5e7eb;
   --muted: rgba(226, 232, 240, 0.72);
-  --border: rgba(148, 163, 184, 0.2);
-  --border-strong: rgba(148, 163, 184, 0.3);
+  --hairline: rgba(255, 255, 255, 0.06);
+  --border: rgba(148, 163, 184, 0.18);
+  --border-strong: rgba(148, 163, 184, 0.28);
   --accent: #61afef;
   --accent-strong: #528bff;
-  --chip: rgba(20, 27, 40, 0.95);
-  --button: #212734;
-  --button-hover: #2a3242;
+  --chip: rgba(19, 23, 34, 0.85);
+  --button: #181c26;
+  --button-hover: #1f2430;
 }
 
 [data-theme="light"] {
   color-scheme: light;
-  --bg: #f5f7fb;
+  --bg: #f8fafc;
   --bg-accent: #eef2f8;
   --panel: #ffffff;
-  --panel-strong: #f0f3f8;
+  --panel-strong: #f5f6fb;
   --text: #111827;
   --muted: rgba(55, 65, 81, 0.72);
-  --border: rgba(148, 163, 184, 0.45);
-  --border-strong: rgba(148, 163, 184, 0.55);
+  --hairline: rgba(17, 24, 39, 0.08);
+  --border: rgba(148, 163, 184, 0.35);
+  --border-strong: rgba(148, 163, 184, 0.5);
   --accent: #2563eb;
   --accent-strong: #1d4ed8;
-  --chip: rgba(240, 243, 248, 0.95);
-  --button: #e6eaf1;
-  --button-hover: #dbe1ea;
+  --chip: rgba(241, 245, 249, 0.85);
+  --button: #edf2ff;
+  --button-hover: #dbe4ff;
 }
 
 body {
   font-family: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
   margin: 0;
-  background: radial-gradient(1200px circle at 10% 10%, var(--bg-accent), var(--bg) 45%, var(--bg) 70%);
+  background: var(--bg);
   color: var(--text);
   display: flex;
   height: 100vh;
@@ -44,11 +46,12 @@ body {
 
 .sidebar {
   width: 300px;
-  padding: 18px;
-  background: linear-gradient(180deg, var(--panel), var(--panel-strong));
-  border-right: 1px solid var(--border);
-  box-shadow: 12px 0 30px rgba(0, 0, 0, 0.25);
+  padding: 16px;
+  background: var(--panel);
+  border-right: 1px solid var(--hairline);
+  box-shadow: none;
   overflow-y: auto;
+  scrollbar-gutter: stable;
 }
 
 .sidebar h1 {
@@ -68,7 +71,7 @@ body {
   padding: 8px 10px;
   background: var(--chip);
   border-radius: 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   font-size: 12px;
 }
 
@@ -89,7 +92,7 @@ body {
   appearance: none;
   background: var(--button);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   padding: 6px 28px 6px 10px;
   border-radius: 8px;
   font-size: 13px;
@@ -101,7 +104,7 @@ body {
 }
 .lang-select select:focus {
   outline: none;
-  box-shadow: 0 0 0 4px rgba(82, 139, 255, 0.06);
+  box-shadow: 0 0 0 2px rgba(82, 139, 255, 0.12);
   border-color: var(--accent-strong);
 }
 .select-wrap {
@@ -122,11 +125,110 @@ body {
 .card {
   margin-top: 12px;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 10px;
   background: var(--panel-strong);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   display: grid;
   gap: 8px;
+  box-shadow: none;
+}
+
+.sidebar .panel-shell {
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  background: var(--panel-strong);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+  box-shadow: none;
+  min-height: 140px;
+  overflow: hidden;
+}
+
+.sidebar .panel-shell + .panel-shell {
+  margin-top: 12px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: transparent;
+  border-bottom: 1px solid var(--hairline);
+  cursor: pointer;
+  user-select: none;
+}
+
+.panel-header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.panel-title {
+  font-size: 12px;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+.panel-chevron {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 0.2s ease;
+  color: var(--muted);
+}
+
+.panel-shell.is-collapsed .panel-chevron {
+  transform: rotate(-45deg);
+}
+
+.panel-body {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-gutter: stable;
+}
+
+.panel-resize-handle {
+  height: 12px;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  background: transparent;
+}
+
+.panel-resize-handle::after {
+  content: "";
+  width: 42px;
+  height: 1px;
+  border-radius: 999px;
+  background: var(--hairline);
+}
+
+.panel-shell.is-collapsed {
+  min-height: 0;
+}
+
+.panel-shell.is-collapsed .panel-body,
+.panel-shell.is-collapsed .panel-resize-handle {
+  display: none;
+}
+
+.panel-shell.is-resizing {
+  user-select: none;
+  cursor: ns-resize;
 }
 
 .card-title {
@@ -151,13 +253,17 @@ body {
   align-items: center;
   justify-content: center;
   background: var(--button);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   color: var(--text);
   padding: 9px 12px;
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
   transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+#openAddModalBtn{
+    width: 100%;
 }
 
 .btn:hover {
@@ -200,7 +306,7 @@ body {
 .schedule-grid input[type="number"],
 .schedule-grid input[type="time"] {
   background: var(--panel-strong);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   color: var(--text);
   padding: 7px 9px;
   border-radius: 8px;
@@ -215,14 +321,14 @@ body {
 }
 
 .list {
-  background: var(--panel-strong);
-  border: 1px solid var(--border);
+  background: var(--panel);
+  border: 1px solid var(--hairline);
   border-radius: 10px;
   padding: 10px;
   max-height: 220px;
   overflow: auto;
   font-size: 12px;
-  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.1);
+  box-shadow: none;
 }
 
 .list .empty {
@@ -244,7 +350,7 @@ body {
   padding: 7px 9px;
   border-radius: 8px;
   background: var(--chip);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   position: relative;
 }
 
@@ -293,7 +399,7 @@ body {
   height: 28px;
   padding: 3px 6px;
   border-radius: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   background: var(--panel-strong);
   color: var(--text);
   font-size: 11px;
@@ -308,7 +414,7 @@ body {
   min-width: 36px;
   border-radius: 6px;
   background: var(--button);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   color: var(--text);
   cursor: pointer;
 }
@@ -332,7 +438,7 @@ body {
   align-items: center;
   justify-content: center;
   background: var(--button);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   color: var(--text);
   font-size: 12px;
   line-height: 1;
@@ -349,14 +455,14 @@ body {
   pointer-events: none;
   background: rgba(20, 27, 40, 0.95);
   color: var(--text);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   padding: 6px 8px;
   font-size: 12px;
   border-radius: 8px;
   transform: translate(12px, 12px);
   z-index: 1000;
   min-width: 80px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+  box-shadow: none;
 }
 
 .cursor-info.hidden {
@@ -379,7 +485,7 @@ body {
   width: 74px;
   padding: 4px 6px;
   border-radius: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   background: var(--panel-strong);
   color: var(--text);
   font-size: 11px;
@@ -401,10 +507,10 @@ body {
 
 .rightbar {
   width: 320px;
-  padding: 18px;
-  background: linear-gradient(180deg, var(--panel), var(--panel-strong));
-  border-left: 1px solid var(--border);
-  box-shadow: -12px 0 30px rgba(0, 0, 0, 0.2);
+  padding: 16px;
+  background: var(--panel);
+  border-left: 1px solid var(--hairline);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -412,11 +518,11 @@ body {
 }
 
 .rightbar.collapsed {
-  width: 44px;
+  width: 2px;
   padding: 18px 6px;
 }
 
-.rightbar.collapsed .list {
+.rightbar.collapsed .card{
   display: none;
 }
 
@@ -433,13 +539,13 @@ body {
   left: -6px;
   top: 50%;
   transform: translateY(-50%);
-  width: 12px;
-  height: 64px;
+  width: 10px;
+  height: 56px;
   border-radius: 999px;
-  background: var(--panel-strong);
-  border: 1px solid var(--border);
+  background: var(--panel);
+  border: 1px solid var(--hairline);
   cursor: ew-resize;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  box-shadow: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -451,8 +557,8 @@ body {
   width: 2px;
   height: 28px;
   border-radius: 999px;
-  background: var(--border-strong);
-  box-shadow: -3px 0 0 var(--border-strong), 3px 0 0 var(--border-strong);
+  background: var(--hairline);
+  box-shadow: -3px 0 0 var(--hairline), 3px 0 0 var(--hairline);
 }
 
 .card-header {
@@ -504,7 +610,7 @@ body {
   height: 30px;
   padding: 4px 6px;
   border-radius: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   background: var(--panel-strong);
   color: var(--text);
   font-size: 12px;
@@ -537,7 +643,7 @@ body {
   min-width: 320px;
   max-width: 90%;
   background: var(--panel-strong);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   padding: 12px;
   border-radius: 10px;
   z-index: 61;
@@ -571,7 +677,7 @@ body {
   height: 36px;
   padding: 6px 8px;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   background: var(--panel);
   color: var(--text);
   font-size: 13px;
@@ -589,7 +695,7 @@ body {
   height: 36px;
   border-radius: 8px;
   background: var(--button);
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   color: var(--text);
 }
 #addCoordPickBtn:hover, #addCoordPickBtn2:hover { background: var(--button-hover); }
@@ -602,13 +708,13 @@ body {
 
 /* 颜色取色器样式 */
 .color-picker-row { display:flex; gap:8px; align-items:center; }
-.color-preview { width: 28px; height: 28px; border-radius:6px; border:1px solid var(--border); background: #000; }
+.color-preview { width: 28px; height: 28px; border-radius:6px; border:1px solid var(--hairline); background: #000; }
 .color-preview.empty { background: transparent; opacity: 0.6; }
 .cond-color input[type="text"] { width: 120px; }
 
 .btn-ghost {
   background: transparent;
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
 }
 
 .btn-ghost:hover {
@@ -618,8 +724,8 @@ body {
 #screen {
   max-width: 100%;
   max-height: 100%;
-  border-radius: 16px;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35), 0 0 0 1px var(--border);
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--hairline);
   cursor: crosshair;
   background: #000;
   touch-action: none;
@@ -639,29 +745,7 @@ body {
   scrollbar-color: rgba(148,163,184,0.24) transparent;
 }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(148,163,184,0.18);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(148,163,184,0.32);
-}
-
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
 
 /* Log entry styling */
 #logList { display:flex; flex-direction:column; gap:6px; }
@@ -682,13 +766,13 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.08);
-  border: 1px solid rgba(255,255,255,0.03);
+  background: var(--panel);
+  border: 1px solid var(--hairline);
   z-index: 1000;
   cursor: pointer;
 }
 .theme-icon-btn img { width: 24px; height: 24px; display:block; }
-.theme-icon-btn:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.28); }
+.theme-icon-btn:hover { background: var(--button-hover); }
 
 /* 新增输入行与相关按钮样式优化 */
 .controls .inline-input-row,
@@ -704,7 +788,7 @@ body {
   height: 36px;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   background: var(--panel-strong);
   color: var(--text);
   font-size: 13px;
@@ -725,11 +809,11 @@ body {
 
 /* 更明显的主动作按钮（例如：发送、安装） */
 .btn.primary {
-  background: linear-gradient(180deg, var(--accent), var(--accent-strong));
-  border-color: rgba(0,0,0,0.08);
+  background: var(--accent);
+  border-color: var(--accent-strong);
   color: #fff;
 }
-.btn.primary:hover { filter: brightness(1.03); }
+.btn.primary:hover { filter: brightness(1.05); }
 
 /* 使内联数字输入更紧凑（电源时长） */
 #powerDuration {
@@ -737,7 +821,7 @@ body {
   height: 36px;
   padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--hairline);
   background: var(--panel-strong);
   color: var(--text);
   box-sizing: border-box;

@@ -238,6 +238,7 @@ const I18N = {
     "status.connected": "已连接",
     "status.disconnected": "连接已断开",
     "btn.themeToggle": "切换浅色",
+    "btn.panel.toggle": "折叠/展开面板",
     "btn.record.start": "开始录制",
     "btn.record.stop": "停止录制",
     "btn.pause": "暂停录制",
@@ -249,6 +250,7 @@ const I18N = {
     "card.events": "操作列表",
     "card.logs": "执行日志",
     "card.theme": "主题",
+    "card.device": "设备工具",
     "card.record": "录制与回放",
     "card.schedule": "定时任务",
     "modal.title": "添加操作",
@@ -365,6 +367,8 @@ const I18N = {
     "label.radius": "采样半径",
     "label.sampleCoords": "采样坐标",
     "hint.sampleNote": "提示：可手动填写或使用“取色”在画面上点击采样。",
+    "hint.panel.resize": "拖拽调整高度",
+    "hint.log.resize": "拖拽调整宽度",
   },
   en: {
     "app.title": "ADB Remote Screen & Touch",
@@ -372,6 +376,7 @@ const I18N = {
     "status.connected": "Connected",
     "status.disconnected": "Disconnected",
     "btn.themeToggle": "Toggle Light",
+    "btn.panel.toggle": "Toggle panel",
     "btn.record.start": "Start Recording",
     "btn.record.stop": "Stop Recording",
     "btn.pause": "Pause Recording",
@@ -383,6 +388,7 @@ const I18N = {
     "card.events": "Actions",
     "card.logs": "Logs",
     "card.theme": "Theme",
+    "card.device": "Device Tools",
     "card.record": "Record & Playback",
     "card.schedule": "Schedule",
     "modal.title": "Add Action",
@@ -423,6 +429,8 @@ const I18N = {
     "label.radius": "Radius",
     "label.sampleCoords": "Sample Coordinates",
     "hint.sampleNote": "Hint: fill manually or use 'Pick' to sample on screen.",
+    "hint.panel.resize": "Drag to resize height",
+    "hint.log.resize": "Drag to resize width",
     "btn.delete": "Delete",
     "btn.pickPoint": "Pick",
     "label.lang": "言/Language",
@@ -506,6 +514,7 @@ const I18N = {
     "status.connected": "接続済み",
     "status.disconnected": "切断されました",
     "btn.themeToggle": "ライト切替",
+    "btn.panel.toggle": "パネルの開閉",
     "btn.record.start": "録画開始",
     "btn.record.stop": "録画停止",
     "btn.pause": "録画を一時停止",
@@ -517,6 +526,7 @@ const I18N = {
     "card.events": "操作リスト",
     "card.logs": "実行ログ",
     "card.theme": "テーマ",
+    "card.device": "デバイスツール",
     "card.record": "録画と再生",
     "card.schedule": "スケジュール",
     "modal.title": "操作を追加",
@@ -557,6 +567,8 @@ const I18N = {
     "label.radius": "サンプリング半径",
     "label.sampleCoords": "サンプリング座標",
     "hint.sampleNote": "ヒント: 手動で入力するか、画面上の「取得」でサンプリングしてください。",
+    "hint.panel.resize": "ドラッグで高さを調整",
+    "hint.log.resize": "ドラッグで幅を調整",
     "btn.delete": "削除",
     "btn.pickPoint": "取得",
     "label.lang": "言/Language",
@@ -657,16 +669,24 @@ function t(key, vars) {
 }
 
 function applyI18n() {
-  document.querySelectorAll("[data-i18n-key]").forEach((el) => {
-    const key = el.dataset.i18nKey;
-    if (!key) return;
-    // if element is input placeholder
-    if (el.tagName === "INPUT" && el.placeholder !== undefined) {
-      el.placeholder = t(key);
-    } else {
-      el.textContent = t(key);
-    }
-  });
+  document
+    .querySelectorAll("[data-i18n-key],[data-i18n-title],[data-i18n-aria-label]")
+    .forEach((el) => {
+      const { i18nKey, i18nTitle, i18nAriaLabel } = el.dataset;
+      if (i18nKey) {
+        if (el.tagName === "INPUT" && el.placeholder !== undefined) {
+          el.placeholder = t(i18nKey);
+        } else {
+          el.textContent = t(i18nKey);
+        }
+      }
+      if (i18nTitle) {
+        el.title = t(i18nTitle);
+      }
+      if (i18nAriaLabel) {
+        el.setAttribute("aria-label", t(i18nAriaLabel));
+      }
+    });
 }
 
 function updateDynamicTexts() {
@@ -1553,6 +1573,7 @@ if (addCondPickBtn) {
     // 开始取色时隐藏 modal（不重置编辑索引），等待画面点击采样；取消取色则重新打开 modal
     if (!pickActive) {
         pickActive = true;
+        pickReturnModal = true;
         if (addModal) addModal.setAttribute("aria-hidden", "true");
         if (cursorInfoEl) {
           cursorInfoEl.innerHTML = `<div>${t('picker.infoColor')}</div>`;
@@ -1851,6 +1872,7 @@ screenEl.addEventListener("pointerdown", (event) => {
       if (addCondX) addCondX.value = Math.round(x);
       if (addCondY) addCondY.value = Math.round(y);
       if (addCondPickBtn) addCondPickBtn.classList.remove("active");
+      if (addCondPickBtn) addCondPickBtn.textContent = t('picker.pick');
       addLog(t('log.colorSampled', { hex }));
       // return to modal
       if (addModal && pickReturnModal) {
@@ -2162,6 +2184,139 @@ if (themeIconBtn) {
   });
 }
 
+const PANEL_STATE_PREFIX = 'sidebarPanelState:';
+const PANEL_MIN_HEIGHT = 120;
+const PANEL_MAX_HEIGHT = 420;
+
+function clampPanelHeight(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return PANEL_MIN_HEIGHT;
+  return Math.min(PANEL_MAX_HEIGHT, Math.max(PANEL_MIN_HEIGHT, parsed));
+}
+
+function readPanelState(key) {
+  try {
+    const raw = localStorage.getItem(PANEL_STATE_PREFIX + key);
+    return raw ? JSON.parse(raw) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function writePanelState(key, state) {
+  try {
+    localStorage.setItem(PANEL_STATE_PREFIX + key, JSON.stringify(state));
+  } catch (err) {
+    /* ignore */
+  }
+}
+
+function initSidebarPanels() {
+  const panels = document.querySelectorAll('.sidebar .panel-shell[data-panel-key]');
+  panels.forEach((panel) => {
+    const panelKey = panel.dataset.panelKey;
+    if (!panelKey) return;
+    const header = panel.querySelector('.panel-header');
+    const resizeHandle = panel.querySelector('.panel-resize-handle');
+    const stored = readPanelState(panelKey) || {};
+    let isCollapsed = !!stored.collapsed;
+    let storedHeight = typeof stored.height === 'number'
+      ? clampPanelHeight(stored.height)
+      : clampPanelHeight(panel.getBoundingClientRect().height);
+
+    const applyHeight = () => {
+      if (isCollapsed) {
+        panel.style.height = '';
+      } else {
+        panel.style.height = `${storedHeight}px`;
+      }
+    };
+
+    const persistState = () => {
+      writePanelState(panelKey, { collapsed: isCollapsed, height: storedHeight });
+    };
+
+    const updateAria = () => {
+      if (header) {
+        header.setAttribute('aria-expanded', String(!isCollapsed));
+      }
+    };
+
+    const handleToggle = () => {
+      isCollapsed = !isCollapsed;
+      panel.classList.toggle('is-collapsed', isCollapsed);
+      updateAria();
+      applyHeight();
+      persistState();
+    };
+
+    panel.classList.toggle('is-collapsed', isCollapsed);
+    updateAria();
+    applyHeight();
+
+    if (header) {
+      header.addEventListener('click', handleToggle);
+      header.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          handleToggle();
+        }
+      });
+    }
+
+    if (resizeHandle) {
+      let resizeActive = false;
+      let resizeStartY = 0;
+      let resizeStartHeight = storedHeight;
+
+      const stopResize = (event) => {
+        if (!resizeActive) return;
+        resizeActive = false;
+        panel.classList.remove('is-resizing');
+        if (event && event.pointerId !== undefined) {
+          try {
+            resizeHandle.releasePointerCapture(event.pointerId);
+          } catch (err) {
+            /* ignore */
+          }
+        }
+        persistState();
+      };
+
+      resizeHandle.addEventListener('pointerdown', (event) => {
+        if (isCollapsed) return;
+        event.preventDefault();
+        resizeActive = true;
+        resizeStartY = event.clientY;
+        resizeStartHeight = storedHeight || panel.getBoundingClientRect().height;
+        panel.classList.add('is-resizing');
+        if (event.pointerId !== undefined) {
+          try {
+            resizeHandle.setPointerCapture(event.pointerId);
+          } catch (err) {
+            /* ignore */
+          }
+        }
+      });
+
+      resizeHandle.addEventListener('pointermove', (event) => {
+        if (!resizeActive) return;
+        const delta = event.clientY - resizeStartY;
+        const nextHeight = clampPanelHeight(resizeStartHeight + delta);
+        storedHeight = nextHeight;
+        panel.style.height = `${nextHeight}px`;
+      });
+
+      resizeHandle.addEventListener('pointerup', stopResize);
+      resizeHandle.addEventListener('pointercancel', stopResize);
+    }
+
+    persistState();
+  });
+}
+
+initSidebarPanels();
+
 function setLogPanelCollapsed(collapsed) {
   logPanel.classList.toggle("collapsed", collapsed);
   localStorage.setItem("logPanelCollapsed", collapsed ? "1" : "0");
@@ -2194,10 +2349,10 @@ logHandle.addEventListener("pointerdown", (event) => {
 logHandle.addEventListener("pointermove", (event) => {
   if (!dragActive) return;
   const delta = dragStartX - event.clientX;
-  const newWidth = Math.min(520, Math.max(44, dragStartWidth + delta));
-  if (newWidth <= 60) {
+  const newWidth = Math.min(520, Math.max(2, dragStartWidth + delta));
+  if (newWidth <= 40) {
     setLogPanelCollapsed(true);
-    setLogPanelWidth(44);
+    setLogPanelWidth(2);
   } else {
     setLogPanelCollapsed(false);
     setLogPanelWidth(newWidth);

@@ -23,65 +23,83 @@
                 </select>
             </div>
         </div>
-        <div class="card">
-            <div class="controls">
-                <button id="installMinicapBtn" class="btn">minicap (SDK 9-34)</button>
-                <button id="refreshBtn" class="btn" data-i18n-key="btn.refresh">刷新</button>
+        <div class="card panel-shell" data-panel-key="device">
+            <div class="panel-header" role="button" tabindex="0" aria-expanded="true">
+                <div class="panel-title" data-i18n-key="card.device">设备工具</div>
+                <span class="panel-chevron" aria-hidden="true"></span>
             </div>
+            <div class="panel-body">
+                <div class="controls">
+                    <button id="installMinicapBtn" class="btn">minicap (SDK 9-34)</button>
+                    <button id="refreshBtn" class="btn" data-i18n-key="btn.refresh">刷新</button>
+                </div>
+            </div>
+            <div class="panel-resize-handle" role="separator" aria-orientation="vertical" title="拖拽调整高度" data-i18n-title="hint.panel.resize"></div>
         </div>
 
-
-        <!-- theme card removed; theme icon lives at top-right -->
-        <div class="card">
-            <div class="card-title" data-i18n-key="card.record">录制与回放</div>
-            <div class="controls">
-                <button id="recordBtn" class="btn" data-i18n-key="btn.record.start">开始录制</button>
-                <button id="pauseBtn" class="btn" disabled data-i18n-key="btn.pause">暂停录制</button>
-                <button id="playBtn" class="btn" data-i18n-key="btn.play">回放</button>
-                <button id="saveBtn" class="btn" data-i18n-key="btn.save">保存 JSON</button>
-                <label class="btn file-btn" for="loadInput" data-i18n-key="btn.load">读取 JSON</label>
-                <input id="loadInput" type="file" accept="application/json" />
-                <label style="display:flex;align-items:center;gap:8px;">
-                    <span style="font-size:12px;color:var(--muted);" data-i18n-key="label.powerMode">电源</span>
-                    <select id="powerModeSelect"
-                        style="height:32px;border-radius:6px;padding:4px;background:var(--button);border:1px solid var(--border);color:var(--text);">
-                        <option value="short" data-i18n-key="opt.power.short">短按</option>
-                        <option value="long" data-i18n-key="opt.power.long">长按</option>
-                    </select>
-                    <input id="powerDuration" type="number" min="100" value="1200"
-                        style="width:80px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--panel-strong);color:var(--text);" />
-                    <button id="powerBtn" class="btn" data-i18n-key="btn.power">电源键</button>
-                </label>
-                <div style="display:flex;gap:8px;margin-top:8px;align-items:center;" class="inline-input-row">
-                    <input id="sendTextInput" type="text" data-i18n-key="placeholder.sendText" placeholder="输入文本并发送"
-                        style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--panel-strong);color:var(--text);" />
-                    <button id="sendTextBtn" class="btn" data-i18n-key="btn.sendText">发送文本</button>
-                </div>
-                <button id="addTextEventBtn" class="btn" data-i18n-key="btn.addTextEvent">添加为输入事件</button>
+        <div class="card panel-shell" data-panel-key="record">
+            <div class="panel-header" role="button" tabindex="0" aria-expanded="true">
+                <div class="panel-title" data-i18n-key="card.record">录制与回放</div>
+                <span class="panel-chevron" aria-hidden="true"></span>
             </div>
+            <div class="panel-body">
+                <div class="controls">
+                    <button id="recordBtn" class="btn" data-i18n-key="btn.record.start">开始录制</button>
+                    <button id="pauseBtn" class="btn" disabled data-i18n-key="btn.pause">暂停录制</button>
+                    <button id="playBtn" class="btn" data-i18n-key="btn.play">回放</button>
+                    <button id="saveBtn" class="btn" data-i18n-key="btn.save">保存 JSON</button>
+                    <label class="btn file-btn" for="loadInput" data-i18n-key="btn.load">读取 JSON</label>
+                    <input id="loadInput" type="file" accept="application/json" />
+                    <label style="display:flex;align-items:center;gap:8px;">
+                        <span style="font-size:12px;color:var(--muted);" data-i18n-key="label.powerMode">电源</span>
+                        <select id="powerModeSelect"
+                            style="height:32px;border-radius:6px;padding:4px;background:var(--button);border:1px solid var(--border);color:var(--text);">
+                            <option value="short" data-i18n-key="opt.power.short">短按</option>
+                            <option value="long" data-i18n-key="opt.power.long">长按</option>
+                        </select>
+                        <input id="powerDuration" type="number" min="100" value="1200"
+                            style="width:80px;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--panel-strong);color:var(--text);" />
+                        <button id="powerBtn" class="btn" data-i18n-key="btn.power">电源键</button>
+                    </label>
+                    <div style="display:flex;gap:8px;margin-top:8px;align-items:center;" class="inline-input-row">
+                        <input id="sendTextInput" type="text" data-i18n-key="placeholder.sendText" placeholder="输入文本并发送"
+                            style="flex:1;padding:6px;border-radius:6px;border:1px solid var(--border);background:var(--panel-strong);color:var(--text);" />
+                        <button id="sendTextBtn" class="btn" data-i18n-key="btn.sendText">发送文本</button>
+                    </div>
+                    <button id="addTextEventBtn" class="btn" data-i18n-key="btn.addTextEvent">添加为输入事件</button>
+                </div>
+            </div>
+            <div class="panel-resize-handle" role="separator" aria-orientation="vertical" title="拖拽调整高度" data-i18n-title="hint.panel.resize"></div>
         </div>
-        <div class="card">
-            <div class="card-title" data-i18n-key="card.schedule">定时任务</div>
-            <div class="schedule">
-                <div class="schedule-grid">
-                    <label>
-                        <span data-i18n-key="label.startTime">开始时间(24小时制，含毫秒)</span>
-                        <input id="timeInput" type="time" step="0.001" value="" />
-                    </label>
-                    <label>
-                        <span data-i18n-key="label.interval">间隔(ms)</span>
-                        <input id="intervalInput" type="number" min="0" value="1000" />
-                    </label>
-                    <label>
-                        <span data-i18n-key="label.loopCount">循环次数(0=无限)</span>
-                        <input id="loopInput" type="number" min="0" value="1" />
-                    </label>
-                </div>
-                <div class="schedule-actions">
-                    <button id="scheduleBtn" class="btn" data-i18n-key="btn.scheduleStart">开始定时</button>
-                    <button id="stopScheduleBtn" class="btn" disabled data-i18n-key="btn.scheduleStop">停止定时</button>
+
+        <div class="card panel-shell" data-panel-key="schedule">
+            <div class="panel-header" role="button" tabindex="0" aria-expanded="true">
+                <div class="panel-title" data-i18n-key="card.schedule">定时任务</div>
+                <span class="panel-chevron" aria-hidden="true"></span>
+            </div>
+            <div class="panel-body">
+                <div class="schedule">
+                    <div class="schedule-grid">
+                        <label>
+                            <span data-i18n-key="label.startTime">开始时间(24小时制，含毫秒)</span>
+                            <input id="timeInput" type="time" step="0.001" value="" />
+                        </label>
+                        <label>
+                            <span data-i18n-key="label.interval">间隔(ms)</span>
+                            <input id="intervalInput" type="number" min="0" value="1000" />
+                        </label>
+                        <label>
+                            <span data-i18n-key="label.loopCount">循环次数(0=无限)</span>
+                            <input id="loopInput" type="number" min="0" value="1" />
+                        </label>
+                    </div>
+                    <div class="schedule-actions">
+                        <button id="scheduleBtn" class="btn" data-i18n-key="btn.scheduleStart">开始定时</button>
+                        <button id="stopScheduleBtn" class="btn" disabled data-i18n-key="btn.scheduleStop">停止定时</button>
+                    </div>
                 </div>
             </div>
+            <div class="panel-resize-handle" role="separator" aria-orientation="vertical" title="拖拽调整高度" data-i18n-title="hint.panel.resize"></div>
         </div>
     </aside>
     <main class="main">
@@ -89,7 +107,7 @@
         <div id="cursorInfo" class="cursor-info" aria-hidden="true"></div>
     </main>
     <aside class="rightbar" id="logPanel">
-        <div class="drag-handle" id="logHandle" title="拖拽调整宽度"></div>
+        <div class="drag-handle" id="logHandle" title="拖拽调整宽度" data-i18n-title="hint.log.resize"></div>
         <div class="card events-card">
             <div class="card-title" data-i18n-key="card.events">操作列表</div>
             <div class="event-controls">
